@@ -1,0 +1,200 @@
+---
+title: "Assets: Track, Manage, and Organize Your Inventory"
+description: "Learn how to create and manage assets in Shelf, including QR codes, statuses, custom fields, CSV import/export, bulk operations, and the asset audit trail."
+---
+
+Assets are the foundation of Shelf. An asset represents any physical item you want to track — a laptop, a camera, a power tool, a vehicle, or any piece of equipment your team uses. Each asset in Shelf gets its own record with a status, location, custodian, category, tags, custom fields, and a full activity log.
+
+<CardGroup cols={2}>
+  <Card title="Create assets" icon="plus">
+    Add assets one at a time or import hundreds from a CSV file in minutes.
+  </Card>
+  <Card title="QR code tags" icon="qrcode">
+    Every asset automatically gets a scannable QR code you can print and attach.
+  </Card>
+  <Card title="Track status" icon="circle-check">
+    Know at a glance whether each asset is available, in custody, or checked out.
+  </Card>
+  <Card title="Bulk operations" icon="list-check">
+    Select multiple assets to assign custody, update location, or add to a booking.
+  </Card>
+</CardGroup>
+
+## Creating an asset
+
+<Steps>
+  <Step title="Open the Assets page">
+    From the left sidebar, click **Assets**. This opens your full asset list.
+  </Step>
+  <Step title="Click New Asset">
+    Select the **New Asset** button in the top-right corner of the page.
+  </Step>
+  <Step title="Fill in the details">
+    Give the asset a name (required). Optionally add:
+    - A description
+    - A category (for grouping assets of the same type)
+    - Tags (for flexible cross-cutting labels)
+    - A location
+    - A valuation (monetary value)
+    - A custodian (person currently responsible for it)
+    - Custom field values (serial numbers, warranty dates, etc.)
+  </Step>
+  <Step title="Upload an image">
+    Drag and drop or browse for a photo of the asset. Images are resized and stored securely.
+  </Step>
+  <Step title="Save">
+    Click **Create Asset**. Shelf automatically generates a QR code and assigns a sequential ID (e.g., `SAM-0001`).
+  </Step>
+</Steps>
+
+## Asset statuses
+
+Every asset has a status that tells you its current state. Status is updated automatically when assets are assigned custody or checked in and out of bookings.
+
+| Status | Meaning |
+|---|---|
+| **Available** | The asset is not assigned to anyone and is free to use or book. |
+| **In Custody** | A team member has been assigned direct custody outside of a booking. |
+| **Checked Out** | The asset has been checked out as part of an active booking. |
+
+<Info>
+Assets marked as **Available to Book = No** will not appear when someone adds assets to a booking, even if their status is Available.
+</Info>
+
+## QR codes and printing
+
+Every asset and kit automatically receives a QR code when it is created. You can:
+
+- **Print a single code** — Open an asset, click the QR code icon, and print directly from the browser or download as a PDF.
+- **Print in bulk** — Select multiple assets from the asset list, then choose **Download QR codes** from the bulk actions menu.
+- **Scan with any phone** — No app installation required. Scanning a QR code opens the asset page, where a team member can view details, report it found, or check it in.
+
+<Tip>
+You can configure whether QR code labels display the Shelf QR ID or the sequential SAM ID (e.g., `SAM-0042`) in your workspace settings under **QR code display preference**.
+</Tip>
+
+## Organizing assets
+
+### Categories
+
+Categories group assets by type. Assign a single category to each asset (for example, "Laptops", "Cameras", "Power Tools"). Categories appear as colored labels in the asset list and can be used as filters.
+
+### Tags
+
+Tags are free-form labels you can apply to any number of assets. Unlike categories, a single asset can have multiple tags. Use tags for cross-cutting concerns like `urgent-maintenance`, `leased`, or `floor-3`. Tags are scoped to either assets or bookings.
+
+### Locations
+
+Assign an asset to a location to record where it physically lives when not in use. See [Locations](/features/locations) for how to set up your location hierarchy.
+
+### Custom fields
+
+Add any additional metadata that is specific to your organization — serial numbers, purchase dates, warranty expiry, condition ratings, and more. See [Custom Fields](/features/custom-fields) for details.
+
+## Searching and filtering
+
+The asset list supports both simple and advanced filtering modes.
+
+<Tabs>
+  <Tab title="Simple search">
+    Type in the search bar to search across asset names, descriptions, categories, locations, custodians, tags, QR code IDs, barcodes, and custom field values simultaneously.
+
+    You can search multiple terms at once by separating them with commas: `camera, studio` returns assets matching either term.
+  </Tab>
+  <Tab title="Advanced filters">
+    Switch to **Advanced mode** in the asset index settings to use column-based filters. You can filter by:
+    - Status (Available, In Custody, Checked Out)
+    - Category
+    - Tags
+    - Location (including child locations)
+    - Custodian
+    - Any custom field value
+    - Kit membership
+
+    Combine multiple filters and save them as **filter presets** for quick re-use.
+  </Tab>
+</Tabs>
+
+## CSV import and export
+
+### Importing assets
+
+<Steps>
+  <Step title="Download the template">
+    Go to **Assets → Import**, then download the CSV template. The template shows all supported columns with sample data.
+  </Step>
+  <Step title="Fill in your data">
+    Each row is one asset. Required column: `title`. Optional columns include `description`, `category`, `location`, `custodian`, `kit`, `tags`, `valuation`, and any custom fields in the format `cf:Field Name[TYPE]`.
+  </Step>
+  <Step title="Upload the file">
+    Drag your completed CSV onto the import page and click **Confirm import**. Shelf validates the file before creating records. Categories, locations, kits, and tags that don't yet exist are created automatically.
+  </Step>
+</Steps>
+
+<Warning>
+If an asset in your CSV belongs to a kit that already has a custodian, the import will fail. Each kit can have only one custodian. Resolve any custodian conflicts before importing.
+</Warning>
+
+### Exporting assets
+
+Go to **Assets** and click **Export** to download a CSV of all assets visible in your current view. If you have filters applied, only the filtered results are exported. The export includes all core fields and custom field values.
+
+## Bulk operations
+
+Select one or more assets using the checkboxes in the asset list to access bulk actions:
+
+| Action | Description |
+|---|---|
+| **Assign custody** | Assign a team member as custodian for all selected assets at once. |
+| **Release custody** | Remove the current custodian from all selected assets. |
+| **Update location** | Move all selected assets to a new location. |
+| **Add to booking** | Add the selected assets to an existing or new booking. |
+| **Add to kit** | Place selected assets into a kit (assets must not already be in a kit). |
+| **Download QR codes** | Generate a printable PDF of QR labels for selected assets. |
+| **Delete** | Permanently delete selected assets. This cannot be undone. |
+
+You can also use **Select all** to apply a bulk action to every asset matching your current search and filter criteria, even across multiple pages.
+
+## Asset reminders
+
+Set reminders on any asset to schedule alerts for important dates — upcoming maintenance, calibration due dates, warranty expiry, or insurance renewals.
+
+<Steps>
+  <Step title="Open an asset">
+    Navigate to the asset detail page.
+  </Step>
+  <Step title="Go to Reminders">
+    Scroll to the **Reminders** section and click **New Reminder**.
+  </Step>
+  <Step title="Configure the reminder">
+    Set a name, message, date and time, and choose which team members should receive the alert.
+  </Step>
+</Steps>
+
+Team members receive an email notification at the scheduled time. Reminders are cancelled automatically if the asset is deleted.
+
+## Audit trail and notes
+
+Every asset maintains a chronological activity log. Shelf automatically records:
+
+- When the asset was created
+- Name, description, category, and valuation changes
+- Location changes (showing both the previous and new location)
+- Custody assignments and releases
+- Custom field value changes
+- Check-in and checkout events tied to bookings
+- Tag additions and removals
+
+In addition to system-generated log entries, any team member with access to the asset can add a **manual note** (comment) to record observations, issue details, or other context.
+
+<AccordionGroup>
+  <Accordion title="Can I delete notes?">
+    System-generated activity notes cannot be deleted — they form the immutable audit trail. Manual comments can be removed by the user who wrote them or by an Admin.
+  </Accordion>
+  <Accordion title="Are notes searchable?">
+    Notes do not appear in the main asset search. Open the asset detail page and scroll to the Activity section to view the full log.
+  </Accordion>
+  <Accordion title="Who can see the audit trail?">
+    All team members with access to the asset can view its activity log. Self Service users see the log for assets they interact with.
+  </Accordion>
+</AccordionGroup>

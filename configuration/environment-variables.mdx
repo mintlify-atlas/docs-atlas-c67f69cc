@@ -1,0 +1,176 @@
+---
+title: "Environment variables reference for Shelf.nu deployments"
+description: "Complete reference for all Shelf.nu environment variables: database, Supabase, SMTP, Stripe, analytics, and feature flags with required vs optional status."
+---
+
+Shelf reads its configuration entirely from environment variables at startup. For local development, copy `.env.example` to `.env` at the monorepo root and fill in the values described below. In production, set these variables through your hosting platform (Fly.io secrets, Docker environment, or similar). Variables marked **Required** must be present for the application to start; **Optional** variables enable additional functionality when set.
+
+<Warning>
+  Never commit `.env` to source control. The `.env.example` file contains
+  placeholder values only and is safe to commit.
+</Warning>
+
+## Database
+
+Shelf uses PostgreSQL via Prisma. Supabase provides both a pooled connection (for the app) and a direct connection (for migrations).
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `DATABASE_URL` | Required | Pooled connection string used by the running application. Include `?pgbouncer=true` when using Supabase's PgBouncer on port `6543`. | `postgres://user:password@host:6543/db?pgbouncer=true` |
+| `DIRECT_URL` | Required | Direct (non-pooled) connection string on port `5432`. Used by Prisma for migrations and pg-boss job queue. | `postgres://user:password@host:5432/db` |
+
+<Note>
+  Both URLs can be found in the Supabase dashboard under **Project Settings → Database**. Copy the connection string and replace the placeholder password with your project's database password.
+</Note>
+
+## Authentication and Supabase
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `SUPABASE_URL` | Required | Base URL of your Supabase project. Used for all Supabase client calls. | `https://yourproject.supabase.co` |
+| `SUPABASE_ANON_PUBLIC` | Required | Supabase anonymous (public) API key. Safe to expose in the browser. | `eyJhbGci...` |
+| `SUPABASE_SERVICE_ROLE` | Required | Supabase service role key. Has full database access — keep this secret. | `eyJhbGci...` |
+| `SESSION_SECRET` | Required | Secret used to sign session cookies. Generate a long random string and rotate it occasionally. | `super-duper-s3cret` |
+| `INVITE_TOKEN_SECRET` | Required | Secret used to sign workspace invitation tokens. | `secret-test-invite` |
+
+## Application
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `SERVER_URL` | Required | Public base URL of your Shelf instance. Used to build absolute URLs in emails and QR codes. | `https://app.shelf.nu` |
+| `APP_NAME` | Optional | Display name shown in the UI and email subjects. Defaults to `Shelf`. | `Shelf` |
+| `FINGERPRINT` | Optional | Custom host fingerprint used when generating cuid IDs. Reduces collision probability in multi-instance setups. | `a-custom-host-fingerprint` |
+| `URL_SHORTENER` | Optional | Domain (without protocol or trailing slash) used to shorten QR code URLs. When absent, full URLs are used. | `eam.sh` |
+| `ADMIN_EMAIL` | Optional | Email address that receives admin notifications such as user deletion requests. Defaults to `support@shelf.nu`. | `admin@shelf.nu` |
+| `SUPPORT_EMAIL` | Optional | Email address users see as the internal support contact. | `support@shelf.nu` |
+
+## Feature flags
+
+These variables map directly to options in `shelf.config.ts`. See the [app configuration reference](/configuration/app-configuration) for full descriptions of each flag.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ENABLE_PREMIUM_FEATURES` | Optional | `false` | Gates features behind a Stripe subscription when `true`. Set to `false` to give all users full access. |
+| `DISABLE_SIGNUP` | Optional | `false` | Blocks direct self-registration. New accounts can still be created via workspace invites. |
+| `DISABLE_SSO` | Optional | `false` | Disables the SSO login option even when SAML providers are configured. |
+| `SEND_ONBOARDING_EMAIL` | Optional | `false` | Sends a welcome email to users after they complete onboarding. |
+| `COLLECT_BUSINESS_INTEL` | Optional | `false` | Adds role, team size, and company fields to the onboarding flow. |
+| `SHOW_HOW_DID_YOU_FIND_US` | Optional | `false` | Deprecated. Use `COLLECT_BUSINESS_INTEL` instead. Kept for backwards compatibility. |
+| `FREE_TRIAL_DAYS` | Optional | `7` | Length of the premium free trial in days. Only used when `ENABLE_PREMIUM_FEATURES=true`. |
+
+## Email / SMTP
+
+Shelf sends transactional emails (invites, onboarding, password reset) via SMTP. All five variables are required if you want email to work.
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `SMTP_HOST` | Required for email | Hostname of your SMTP server. | `mail.example.com` |
+| `SMTP_PORT` | Required for email | SMTP port. `465` for SSL, `587` for STARTTLS. | `465` |
+| `SMTP_USER` | Required for email | SMTP username / login address. | `some-email@example.com` |
+| `SMTP_PWD` | Required for email | SMTP password. | `super-safe-passw0rd` |
+| `SMTP_FROM` | Required for email | Display name and address shown in the From header. | `Carlos from shelf.nu <carlos@shelf.nu>` |
+
+## Premium features / Stripe
+
+Required only when `ENABLE_PREMIUM_FEATURES=true`. Obtain these keys from the [Stripe Dashboard](https://dashboard.stripe.com/apikeys).
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `STRIPE_SECRET_KEY` | Required for premium | Stripe secret key used for server-side API calls. | `sk_live_...` |
+| `STRIPE_PUBLIC_KEY` | Required for premium | Stripe publishable key used in the browser. | `pk_live_...` |
+| `STRIPE_WEBHOOK_ENDPOINT_SECRET` | Required for premium | Secret used to verify Stripe webhook signatures. | `whsec_...` |
+
+## Geocoding
+
+Used for reverse-geocoding asset and location coordinates.
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `MAPTILER_TOKEN` | Optional | API token for MapTiler tile and geocoding services. | `maptiler-token` |
+| `GEOCODING_USER_AGENT` | Optional | User-Agent string sent with geocoding requests. | `Your App Name (https://yoursite.com)` |
+
+## Analytics and monitoring
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `MICROSOFT_CLARITY_ID` | Optional | Microsoft Clarity project ID for session recording and heatmaps. | `abc123xyz` |
+| `CLOUDFLARE_WEB_ANALYTICS_TOKEN` | Optional | Cloudflare Web Analytics beacon token. | `your-cloudflare-token` |
+| `SENTRY_DSN` | Optional | Sentry Data Source Name for error tracking. | `https://abc@sentry.io/123` |
+| `SENTRY_ORG` | Optional | Sentry organization slug, used during build for source-map uploads. | `my-org` |
+| `SENTRY_PROJECT` | Optional | Sentry project slug, used during build for source-map uploads. | `shelf-webapp` |
+
+## Other integrations
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `FULL_CALENDAR_LICENSE_KEY` | Optional | License key for the FullCalendar premium plugin used in the bookings calendar view. | `full-calendar-license-key` |
+| `CHROME_EXECUTABLE_PATH` | Optional | Absolute path to a Chromium binary, required for server-side PDF or screenshot generation. | `/usr/bin/chromium` |
+
+## Full .env.example
+
+For reference, here is the complete `.env.example` from the repository root.
+
+```bash
+# Database — find these in Supabase: Project Settings → Database
+DATABASE_URL="postgres://{USER}:{PASSWORD}@{HOST}:6543/{DB_NAME}?pgbouncer=true"
+DIRECT_URL="postgres://{USER}:{PASSWORD}@{HOST}:5432/{DB_NAME}"
+
+SESSION_SECRET="super-duper-s3cret"
+SUPABASE_ANON_PUBLIC="{ANON_PUBLIC}"
+SUPABASE_SERVICE_ROLE="{SERVICE_ROLE}"
+SUPABASE_URL="https://{YOUR_INSTANCE_NAME}.supabase.co"
+SERVER_URL="http://localhost:3000"
+
+# Used for shortening URLs of QR codes. Optional.
+# Should not include the protocol (http/https) or a trailing slash.
+# URL_SHORTENER="eam.sh"
+
+APP_NAME="Shelf"
+
+# Used for generating cuid with lowered chance of collision. Optional.
+FINGERPRINT="a-custom-host-fingerprint"
+
+# Set to false to make all premium features available without a subscription.
+ENABLE_PREMIUM_FEATURES="true"
+
+# Set to true to disable direct user registration.
+DISABLE_SIGNUP="false"
+
+# Set to true to disable SSO.
+DISABLE_SSO="false"
+
+# Stripe keys — required only when ENABLE_PREMIUM_FEATURES=true
+STRIPE_SECRET_KEY="stripe-secret-key"
+STRIPE_PUBLIC_KEY="stripe-public-key"
+STRIPE_WEBHOOK_ENDPOINT_SECRET="stripe-endpoint-secret"
+FREE_TRIAL_DAYS="14"
+
+SMTP_PWD="super-safe-passw0rd"
+SMTP_HOST="mail.example.com"
+SMTP_PORT=465
+SMTP_USER="some-email@example.com"
+SMTP_FROM="Carlos from shelf.nu <carlos@shelf.nu>"
+
+# Set to false to disable sending onboarding emails.
+SEND_ONBOARDING_EMAIL="false"
+
+MAPTILER_TOKEN="maptiler-token"
+GEOCODING_USER_AGENT="Your App Name (https://yoursite.com)"
+MICROSOFT_CLARITY_ID="microsoft-clarity-id"
+CLOUDFLARE_WEB_ANALYTICS_TOKEN="your-cloudflare-web-analytics-token"
+
+INVITE_TOKEN_SECRET="secret-test-invite"
+
+# Sentry error logging
+SENTRY_ORG="sentry-org"
+SENTRY_PROJECT="sentry-project"
+SENTRY_DSN="sentry-dsn"
+# CHROME_EXECUTABLE_PATH="/usr/bin/chromium"
+
+# Email for admin notifications. Optional. Defaults to support@shelf.nu.
+ADMIN_EMAIL="admin@shelf.nu"
+
+SUPPORT_EMAIL="support@shelf.nu"
+
+FULL_CALENDAR_LICENSE_KEY="full-calendar-license-key"
+```

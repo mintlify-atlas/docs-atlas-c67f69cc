@@ -1,0 +1,262 @@
+---
+title: "Error Handling Patterns — Shelf.nu Developer Guide"
+description: "Learn how Shelf.nu uses ShelfError, makeShelfError, payload(), and error() to produce consistent, debuggable errors across loaders, actions, and services."
+---
+
+Shelf.nu enforces a consistent error-handling contract across every layer of the stack. Every thrown error travels through the same `ShelfError` class, gets normalized by `makeShelfError`, and is serialized into a predictable JSON envelope before reaching the client. Following these patterns ensures users receive meaningful messages while Sentry captures only the errors that matter.
+
+<Note>
+  The best way to learn error handling is to read existing code alongside this guide. Look at any route under `apps/webapp/app/routes/` for live examples of every pattern described here.
+</Note>
+
+## Routes with a view
+
+Loader and action functions in view routes must always wrap their body in a `try/catch` block. Everything that can throw belongs inside the `try` block.
+
+### Loader
+
+- Return a `payload({...})` response in the `try` block.
+- **Throw** a `data(error({...}))` response in the `catch` block (throwing triggers React Router's error boundary).
+
+```typescript
+export function loader() {
+  try {
+    // Do something
+    return payload({ name: "John" });
+  } catch (cause) {
+    const reason = makeShelfError(cause);
+    throw data(error(reason), { status: reason.status });
+  }
+}
+
+export default function Route() {
+  const loaderData = useLoaderData<typeof loader>();
+  //      ^ { name: string }
+}
+```
+
+### Action
+
+- Return a `payload({...})` response in the `try` block.
+- **Return** (not throw) a `data(error({...}))` response in the `catch` block so the component can read the error via `useActionData`.
+
+```typescript
+export function action() {
+  try {
+    // Do something
+    return payload({ name: "John" });
+  } catch (cause) {
+    const reason = makeShelfError(cause);
+    return data(error(reason));
+  }
+}
+
+export default function Route() {
+  const actionData = useActionData<typeof action>();
+  //      ^ { error: {...} | null } | { name: string, error: null }
+  const result = actionData && !actionData.error ? actionData.data : null;
+  const err = actionData?.error;
+}
+```
+
+<Warning>
+  In loaders you **throw** the error response; in actions you **return** it. Throwing in an action would invoke the error boundary and skip the form's inline error display.
+</Warning>
+
+## Resource routes
+
+Resource routes (in `api+/`) follow the same rules as view routes but the distinction between throwing and returning is less critical because there is no error boundary UI. Both loader and action functions should:
+
+- Return `payload({...})` on success.
+- Return `data(error({...}))` on failure.
+
+## Services
+
+Service functions (in `modules/*/service.server.ts`) must **only throw `ShelfError`** — never a `payload`, `Response`, or bare `Error`. This keeps the serialization concern at the route layer.
+
+```typescript
+// Good — service throws a ShelfError
+export async function getUser(id: string) {
+  try {
+    const user = await db.user.findUniqueOrThrow({ where: { id } });
+    return user;
+  } catch (cause) {
+    throw new ShelfError({
+      cause,
+      message: "User not found",
+      label: "User",
+      status: 404,
+    });
+  }
+}
+```
+
+## DB queries
+
+Wrap database queries in dedicated functions with `try/catch`, or use `.catch()` inline if you don't want to extract a function:
+
+```typescript
+async function loader({ params }: LoaderFunctionArgs) {
+  try {
+    const user = await getUser(params.id); // handles its own errors
+
+    const userMainOrg = await db.organization
+      .findFirst({
+        where: { orgId: user.mainOrgId },
+      })
+      .catch((cause) => {
+        throw new ShelfError({
+          cause,
+          message: "An error occurred while fetching the user main organization",
+          additionalData: { params, user },
+          label: "Organization",
+        });
+      });
+
+    return payload({ user, userMainOrg });
+  } catch (cause) {
+    const reason = makeShelfError(cause);
+    throw data(error(reason), { status: reason.status });
+  }
+}
+```
+
+## Transient database errors
+
+Prisma can throw transient errors (`P2024`, `P1001`, `P1002`, `P1008`, `P1017`) when the connection pool is exhausted or the server is unreachable. Shelf handles these automatically at two levels so no service code changes are needed.
+
+### 1. Client-level retry (`db.server.ts`)
+
+The Prisma client extension retries any transient error up to **2 times** with linear backoff — 500 ms then 1 000 ms. This is transparent to all loader, action, and service code.
+
+### 2. Error classification (`makeShelfError`)
+
+If retries are exhausted and the transient error propagates up wrapped inside one or more `ShelfError` layers, `makeShelfError` walks the entire cause chain via `hasTransientCause`. When it detects a buried transient error it returns a **503 Service Unavailable** with a generic connectivity message instead of copying the misleading domain-level message (for example, "User not found").
+
+<Tip>
+  Both layers are centralized — `db.server.ts` handles retries and `makeShelfError` handles final classification. Nothing in service code needs to change to benefit from them.
+</Tip>
+
+## Utility reference
+
+### `ShelfError` class
+
+Source: `apps/webapp/app/utils/error.ts`
+
+The base error class for all application errors. Constructor accepts:
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `cause` | `unknown` | The original error that triggered this one, or `null`. |
+| `message` | `string` | Human-readable error message sent to the client. |
+| `label` | `string` | Domain label used in Sentry grouping (e.g., `"Asset"`, `"Booking"`). |
+| `status` | `number` | HTTP status code (default: `500`). |
+| `additionalData` | `object` | Extra context included in Sentry reports. |
+| `shouldBeCaptured` | `boolean` | Set to `false` to skip Sentry capture (default: `true`). |
+| `title` | `string` | Optional short title shown in UI toasts. |
+
+```typescript
+throw new ShelfError({
+  cause,
+  message: "An error occurred while fetching the user main organization",
+  additionalData: { params, user },
+  label: "Organization",
+  shouldBeCaptured: false, // Logged to console but not sent to Sentry
+});
+```
+
+### `makeShelfError()`
+
+Source: `apps/webapp/app/utils/error.ts`
+
+Normalizes any caught value into a `ShelfError`. Use this in every route `catch` block so you always have a well-typed error with a valid HTTP status before calling `error()`.
+
+```typescript
+} catch (cause) {
+  const reason = makeShelfError(cause, { userId });
+  throw data(error(reason), { status: reason.status });
+}
+```
+
+The optional second argument merges into `additionalData`, making it easy to attach request context without modifying the original error.
+
+### `payload()` and `error()`
+
+Source: `apps/webapp/app/utils/http.server.ts`
+
+`payload(data)` wraps a successful result in the standard envelope:
+
+```json
+{ "data": { "name": "John" }, "error": null }
+```
+
+`error(shelfError)` wraps a `ShelfError` in the standard error envelope:
+
+```json
+{
+  "error": {
+    "message": "Something went wrong",
+    "status": 500,
+    "label": "Asset"
+  },
+  "data": null
+}
+```
+
+### `parseData()`
+
+Source: `apps/webapp/app/utils/http.server.ts`
+
+Parses and validates `FormData`, `URLSearchParams`, or a plain object against a Zod schema. Throws a `ShelfError` with status `400` if validation fails.
+
+<Info>
+  Use `parseData()` inside a `try/catch` block so validation errors are caught by the route's error handler.
+</Info>
+
+```typescript
+const { assetIds, newLocationId } = parseData(
+  formData,
+  BulkLocationUpdateSchema.and(CurrentSearchParamsSchema)
+);
+```
+
+By default, validation errors are **not** captured by Sentry. Pass `shouldBeCaptured: true` in the options object to override this.
+
+### `getParams()`
+
+Source: `apps/webapp/app/utils/http.server.ts`
+
+A superset of `parseData()` for validating URL path parameters. Unlike `parseData()`, it throws a JSON response directly — **do not call it inside a `try/catch` block**.
+
+```typescript
+const { bookingId } = getParams(
+  params,
+  z.object({ bookingId: z.string() }),
+  { additionalData: { userId } }
+);
+```
+
+### `getValidationErrors()`
+
+Source: `apps/webapp/app/utils/http.ts`
+
+Extracts per-field validation errors from the `error.additionalData` object returned by `error()`. Useful for displaying inline form field errors.
+
+```typescript
+const nameError = getValidationErrors<typeof MySchema>(actionData?.error).name
+  ?.message;
+```
+
+## ESLint rules
+
+### `@typescript-eslint/no-floating-promises`
+
+All async function calls must be awaited or explicitly returned. A floating promise that throws internally can crash the server if the error is never caught.
+
+If you intentionally call an async function that handles its own errors (for example, a fire-and-forget `sendEmail` that has an internal `catch`), silence the rule with `void`:
+
+```typescript
+void sendEmail(); // sendEmail() has its own catch block
+```
+
+Use `void` sparingly — prefer `await` wherever possible.

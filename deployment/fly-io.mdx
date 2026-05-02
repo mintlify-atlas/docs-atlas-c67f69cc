@@ -1,0 +1,367 @@
+---
+title: "Deploy Shelf.nu to Fly.io with GitHub Actions CI/CD"
+description: "Deploy Shelf.nu to Fly.io using GitHub Actions for automated CI/CD, with separate staging and production environments, email setup, and monitoring."
+---
+
+Fly.io is the officially supported deployment target for Shelf.nu. This guide walks you through creating your Fly.io apps, configuring environment secrets, wiring up GitHub Actions for automated deployments, and keeping your production instance healthy. By the end you will have a staging environment that deploys on every push to `dev`, and a production environment that deploys on every push to `main`.
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+- A working local development setup with all migrations applied
+- A Supabase project configured with storage buckets and authentication
+- Your Shelf.nu code in a GitHub repository
+- A [Fly.io account](https://fly.io) (a free tier is available)
+
+## Deployment steps
+
+<Steps>
+  <Step title="Install the Fly CLI">
+    <Tabs>
+      <Tab title="macOS / Linux">
+        ```bash
+        curl -L https://fly.io/install.sh | sh
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        powershell -Command "iwr https://fly.io/install.ps1 -useb | iex"
+        ```
+      </Tab>
+    </Tabs>
+
+    Verify the installation:
+
+    ```bash
+    fly version
+    ```
+  </Step>
+
+  <Step title="Authenticate with Fly.io">
+    ```bash
+    fly auth login
+    ```
+
+    If you do not have an account yet, run `fly auth signup` instead. To confirm which account is active at any time, run `fly auth whoami`.
+  </Step>
+
+  <Step title="Create your Fly apps">
+    Shelf uses separate apps for staging and production. The production app name must match the `app` field in `apps/webapp/fly.toml` — the default is `shelf-webapp`.
+
+    ```bash
+    # Production
+    fly apps create shelf-webapp
+
+    # Staging (recommended)
+    fly apps create shelf-webapp-staging
+    ```
+
+    <Note>
+      You can name your apps anything you like, but you must update the `app` field in `fly.toml` to match your production app name before deploying.
+    </Note>
+  </Step>
+
+  <Step title="Configure Supabase for production">
+    Create a dedicated Supabase project for production following the [Supabase setup guide](/supabase-setup). Using a separate project keeps production data isolated from development.
+
+    Once your production Supabase project is ready, add your production and staging callback URLs:
+
+    1. In your Supabase dashboard, go to **Authentication** → **URL Configuration**
+    2. Under **Redirect URLs**, add:
+       ```
+       https://your-production-app.fly.dev/reset-password
+       https://your-staging-app.fly.dev/reset-password
+       ```
+  </Step>
+
+  <Step title="Configure environment secrets">
+    Fly.io stores sensitive values as encrypted secrets. Run these commands to set them for your production app. Replace every placeholder with your actual values.
+
+    **Core secrets**
+
+    ```bash
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32)
+    fly secrets set SERVER_URL="https://your-production-app.fly.dev"
+    fly secrets set FINGERPRINT=$(openssl rand -hex 32)
+    fly secrets set INVITE_TOKEN_SECRET=$(openssl rand -hex 32)
+    ```
+
+    **Supabase secrets**
+
+    ```bash
+    fly secrets set SUPABASE_URL="https://your-production-project.supabase.co"
+    fly secrets set SUPABASE_SERVICE_ROLE="your-production-service-role-key"
+    fly secrets set SUPABASE_ANON_PUBLIC="your-production-anon-key"
+    fly secrets set DATABASE_URL="postgres://user:pass@host:6543/db?pgbouncer=true&connection_limit=1"
+    fly secrets set DIRECT_URL="postgres://user:pass@host:5432/db"
+    ```
+
+    <Tip>
+      Find your Supabase credentials in your project dashboard under **Project Settings** → **Database** and **API**.
+    </Tip>
+
+    **Email secrets**
+
+    ```bash
+    fly secrets set SMTP_HOST="smtp.yourhost.com"
+    fly secrets set SMTP_PORT=465
+    fly secrets set SMTP_USER="you@example.com"
+    fly secrets set SMTP_PWD="yourSMTPpassword"
+    fly secrets set SMTP_FROM="Shelf.nu <noreply@yourapp.com>"
+    ```
+
+    See [Email providers](#email-providers) below for provider-specific values.
+
+    **Optional secrets**
+
+    ```bash
+    # Analytics
+    fly secrets set MICROSOFT_CLARITY_ID="your-clarity-id"
+    fly secrets set CLOUDFLARE_WEB_ANALYTICS_TOKEN="your-cloudflare-token"
+
+    # Map features
+    fly secrets set MAPTILER_TOKEN="your-maptiler-token"
+    fly secrets set GEOCODING_USER_AGENT="Your Company Assets (https://yoursite.com)"
+
+    # Premium features and Stripe (set ENABLE_PREMIUM_FEATURES="false" to skip Stripe entirely)
+    fly secrets set ENABLE_PREMIUM_FEATURES="true"
+    fly secrets set STRIPE_SECRET_KEY="your-stripe-secret-key"
+    fly secrets set STRIPE_PUBLIC_KEY="your-stripe-public-key"
+    fly secrets set STRIPE_WEBHOOK_ENDPOINT_SECRET="your-stripe-webhook-secret"
+
+    # Error tracking
+    fly secrets set SENTRY_DSN="your-sentry-dsn"
+    ```
+
+    **Staging secrets**
+
+    Repeat the same commands for staging, appending `--app shelf-webapp-staging` to each:
+
+    ```bash
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app shelf-webapp-staging
+    fly secrets set SERVER_URL="https://your-staging-app.fly.dev" --app shelf-webapp-staging
+    # ...repeat for all other required secrets
+    ```
+
+    <Warning>
+      Use different `SESSION_SECRET`, `FINGERPRINT`, and `INVITE_TOKEN_SECRET` values for staging and production. Never share secrets between environments.
+    </Warning>
+  </Step>
+
+  <Step title="Set up GitHub Actions">
+    **Add the Fly API token to GitHub**
+
+    1. Go to [Fly.io Personal Access Tokens](https://web.fly.io/user/personal_access_tokens/new) and create a new token
+    2. In your GitHub repository, go to **Settings** → **Secrets and variables** → **Actions**
+    3. Add a secret named `FLY_API_TOKEN` with the token value
+
+    **Deployment workflows**
+
+    The repository includes two pre-configured workflows:
+
+    - **`.github/workflows/deploy.yml`** — deploys the `main` branch to production
+    - **`.github/workflows/deploy-staging.yml`** — deploys the `dev` branch to staging
+
+    With these in place, every merge to `main` triggers a production deploy, and every push to `dev` triggers a staging deploy. No additional configuration is required.
+
+    **GitHub Actions test secrets**
+
+    If your CI pipeline runs tests, add these secrets so the test suite can connect to a database:
+
+    ```bash
+    DATABASE_URL=your-test-database-url
+    DIRECT_URL=your-test-direct-url
+    SUPABASE_URL=your-test-supabase-url
+    SUPABASE_SERVICE_ROLE=your-test-service-role
+    SUPABASE_ANON_PUBLIC=your-test-anon-key
+    SESSION_SECRET=any-random-string-for-tests
+    SERVER_URL=http://localhost:3000
+    ```
+  </Step>
+
+  <Step title="Deploy for the first time">
+    Before GitHub Actions takes over, deploy manually to verify your configuration:
+
+    ```bash
+    # Deploy to production
+    fly deploy
+
+    # Deploy to staging
+    fly deploy --app shelf-webapp-staging
+    ```
+
+    Fly.io runs `npx prisma migrate deploy` as a release command before starting the new version, so your database migrations are applied automatically on every deploy.
+
+    <Info>
+      The first deploy may take a few minutes while Docker builds and pushes your image. Subsequent deploys are faster thanks to layer caching.
+    </Info>
+  </Step>
+
+  <Step title="Set up a custom domain (optional)">
+    **Add your domain to Fly.io**
+
+    ```bash
+    fly certs create yourdomain.com
+    fly certs create www.yourdomain.com
+    ```
+
+    **Configure your DNS records**
+
+    ```
+    A     @    → [Fly.io IP from dashboard]
+    CNAME www  → yourapp.fly.dev
+    ```
+
+    **Update the SERVER_URL secret**
+
+    ```bash
+    fly secrets set SERVER_URL="https://yourdomain.com"
+    ```
+
+    You must also update the redirect URLs in Supabase **Authentication** → **URL Configuration** to use your custom domain.
+  </Step>
+</Steps>
+
+## Email providers
+
+Shelf requires SMTP for authentication emails (OTP codes, password resets, and invitations). Choose a provider and set the corresponding secrets on your Fly app.
+
+<Tabs>
+  <Tab title="Resend (recommended)">
+    [Resend](https://resend.com) is free for low volumes and straightforward to configure.
+
+    1. Sign up and create an API key in your Resend dashboard
+    2. Verify your sending domain
+    3. Set secrets:
+
+    ```bash
+    fly secrets set SMTP_HOST="smtp.resend.com"
+    fly secrets set SMTP_PORT=587
+    fly secrets set SMTP_USER="resend"
+    fly secrets set SMTP_PWD="your-resend-api-key"
+    fly secrets set SMTP_FROM="Shelf.nu <noreply@yourdomain.com>"
+    ```
+  </Tab>
+  <Tab title="SendGrid">
+    1. Sign up at [SendGrid](https://sendgrid.com) and create an API key with **Mail Send** permissions
+    2. Set secrets:
+
+    ```bash
+    fly secrets set SMTP_HOST="smtp.sendgrid.net"
+    fly secrets set SMTP_PORT=587
+    fly secrets set SMTP_USER="apikey"
+    fly secrets set SMTP_PWD="your-sendgrid-api-key"
+    fly secrets set SMTP_FROM="Shelf.nu <noreply@yourdomain.com>"
+    ```
+  </Tab>
+  <Tab title="Mailgun">
+    1. Sign up at [Mailgun](https://mailgun.com) and add a sending domain
+    2. Retrieve your SMTP credentials from the domain dashboard
+    3. Set secrets:
+
+    ```bash
+    fly secrets set SMTP_HOST="smtp.mailgun.org"
+    fly secrets set SMTP_PORT=587
+    fly secrets set SMTP_USER="postmaster@yourdomain.com"
+    fly secrets set SMTP_PWD="your-mailgun-smtp-password"
+    fly secrets set SMTP_FROM="Shelf.nu <noreply@yourdomain.com>"
+    ```
+  </Tab>
+</Tabs>
+
+<Warning>
+  Do not use Gmail SMTP in production. Gmail has strict rate limits and is not reliable for transactional email. Use a dedicated email service instead.
+</Warning>
+
+## Monitoring and maintenance
+
+### View logs
+
+```bash
+fly logs           # Recent log output
+fly logs -f        # Stream logs in real time
+```
+
+### Check app health
+
+```bash
+fly status         # App and instance status
+fly checks list    # Health check results
+```
+
+The `fly.toml` configures a `/healthcheck` endpoint that Fly polls every 10 seconds. Unhealthy instances are restarted automatically.
+
+### Scale your app
+
+```bash
+fly scale count 2              # Run 2 instances
+fly scale vm shared-cpu-1x     # Use a smaller VM
+fly scale vm performance-1x    # Use a larger VM
+fly scale show                 # View current scale config
+```
+
+### Other useful commands
+
+```bash
+fly info                       # App details and URLs
+fly certs list                 # TLS certificate status
+fly ssh console                # Open a shell inside the running container
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Build fails on first deploy">
+    Check the build output for missing dependencies or compilation errors:
+
+    ```bash
+    fly deploy --verbose
+    fly logs --app your-app-name
+    ```
+
+    Ensure your `fly.toml` `app` field matches the app name you created with `fly apps create`.
+  </Accordion>
+
+  <Accordion title="Database connection errors">
+    Verify that `DATABASE_URL` includes `pgbouncer=true&connection_limit=1`. Shelf uses a connection pooler by default and the direct URL is only used for migrations.
+
+    ```bash
+    fly secrets list   # Confirm all secrets are set
+    ```
+
+    Also confirm your Supabase project is active and not paused (free-tier projects pause after inactivity).
+  </Accordion>
+
+  <Accordion title="Authentication emails are not arriving">
+    1. Check your SMTP secrets are correct with `fly secrets list`
+    2. Review logs for SMTP errors: `fly logs -f`
+    3. Confirm your sending domain is verified with your email provider
+    4. Make sure your Supabase **Redirect URLs** include your production domain
+  </Accordion>
+
+  <Accordion title="App is slow or returning 503 errors">
+    The default `fly.toml` sets `min_machines_running = 1`, which prevents cold starts. If you are seeing intermittent slowness under load, scale up:
+
+    ```bash
+    fly scale count 2
+    fly scale vm performance-1x
+    ```
+
+    Review concurrency settings in `fly.toml` — the defaults are `soft_limit = 100` and `hard_limit = 125` requests per instance.
+  </Accordion>
+
+  <Accordion title="Migrations fail during deploy">
+    The release command runs `npx prisma migrate deploy`. If it fails, the deploy is rolled back. Check logs for migration errors:
+
+    ```bash
+    fly logs --app your-app-name
+    ```
+
+    Ensure `DATABASE_URL` and `DIRECT_URL` are both set correctly. The `DIRECT_URL` is required for migrations because it bypasses PgBouncer.
+  </Accordion>
+
+  <Accordion title="Custom domain not working">
+    Run `fly certs list` to check certificate provisioning status. DNS propagation can take up to 48 hours. Once your certificate shows as `Issued`, verify your `SERVER_URL` secret matches your custom domain exactly (including `https://`).
+  </Accordion>
+</AccordionGroup>

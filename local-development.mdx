@@ -1,0 +1,276 @@
+---
+title: "Run Shelf.nu locally: clone, install, configure, and start"
+description: "Install prerequisites, clone the monorepo, set up optional SSL with mkcert, initialize the database, and launch the Remix dev server on localhost."
+---
+
+This guide covers everything you need to run Shelf.nu on your local machine. Before you start, complete the [Supabase setup guide](/supabase-setup) — the app needs a live Supabase project and a populated `.env` file to start.
+
+## Prerequisites
+
+Make sure the following are installed before cloning the repository:
+
+| Requirement | Minimum version | How to install |
+| --- | --- | --- |
+| Node.js | `>= 22.20.0` | [nodejs.org](https://nodejs.org/) or a version manager like `nvm` |
+| pnpm | `>= 9.15.4` | `corepack enable && corepack prepare pnpm@9.15.4 --activate` |
+| Git | Any recent version | [git-scm.com](https://git-scm.com/) |
+
+## Monorepo structure
+
+Shelf.nu is a **pnpm + Turborepo monorepo**. All commands use `pnpm` — never `npm` or `yarn`.
+
+| Package | Path | Description |
+| --- | --- | --- |
+| `@shelf/webapp` | `apps/webapp/` | Remix web application |
+| `@shelf/database` | `packages/database/` | Prisma schema, migrations, and client factory |
+| `@shelf/typescript-config` | `tooling/typescript/` | Shared TypeScript configurations |
+
+<Steps>
+  <Step title="Clone the repository and install dependencies">
+    ```bash
+    git clone https://github.com/Shelf-nu/shelf.nu.git
+    cd shelf.nu
+    pnpm install
+    ```
+
+    This installs all workspace dependencies in a single pass using pnpm workspaces.
+  </Step>
+
+  <Step title="Copy and fill in your .env file">
+    The `.env` file must be placed at the **monorepo root** — not inside `apps/webapp/`.
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` and fill in your Supabase credentials and session secrets from the [Supabase setup guide](/supabase-setup). The minimum required variables to start the app are:
+
+    ```bash
+    DATABASE_URL="postgres://{USER}:{PASSWORD}@{HOST}:6543/{DB_NAME}?pgbouncer=true"
+    DIRECT_URL="postgres://{USER}:{PASSWORD}@{HOST}:5432/{DB_NAME}"
+    SUPABASE_URL="https://{YOUR_INSTANCE_NAME}.supabase.co"
+    SUPABASE_ANON_PUBLIC="{ANON_PUBLIC}"
+    SUPABASE_SERVICE_ROLE="{SERVICE_ROLE}"
+    SESSION_SECRET="your-session-secret"
+    SERVER_URL="http://localhost:3000"
+    ```
+
+    <Note>
+      Different contexts load environment variables differently. The dev server (`pnpm webapp:dev`) reads from `envDir: "../.."` in the Vite config. Local production testing (`pnpm webapp:start`) uses a `dotenv` wrapper to inject the root `.env`. Docker and Fly.io deployments receive env vars from the platform directly.
+    </Note>
+  </Step>
+
+  <Step title="Set up local SSL (optional but recommended)">
+    Shelf's default Vite config is set up for HTTPS on localhost. Running with SSL more closely mirrors a production environment and avoids some browser security restrictions.
+
+    #### Install mkcert
+
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        brew install mkcert
+        ```
+      </Tab>
+      <Tab title="Linux (Ubuntu/Debian)">
+        ```bash
+        sudo apt install libnss3-tools
+        wget -O mkcert https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-linux-amd64
+        chmod +x mkcert
+        sudo mv mkcert /usr/local/bin/
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```bash
+        choco install mkcert
+        ```
+      </Tab>
+    </Tabs>
+
+    #### Generate certificates
+
+    ```bash
+    # Install the local certificate authority
+    mkcert -install
+
+    # Create the certificate directory inside the webapp package
+    mkdir apps/webapp/.cert
+
+    # Generate certificates for localhost
+    mkcert -key-file apps/webapp/.cert/key.pem -cert-file apps/webapp/.cert/cert.pem localhost 127.0.0.1 ::1
+    ```
+
+    Update `SERVER_URL` in your `.env` to use HTTPS:
+
+    ```bash
+    SERVER_URL="https://localhost:3000"
+    ```
+
+    #### Disable SSL instead
+
+    If you prefer to run without SSL, remove the `https` block from `apps/webapp/vite.config.ts`:
+
+    ```typescript
+    // Remove or comment out these lines in apps/webapp/vite.config.ts
+    https: {
+      key: "./.cert/key.pem",
+      cert: "./.cert/cert.pem",
+    },
+    ```
+
+    Leave `SERVER_URL` set to `http://localhost:3000` in your `.env`.
+  </Step>
+
+  <Step title="Initialize the database">
+    This command generates the Prisma client and applies all database migrations to your Supabase project:
+
+    ```bash
+    pnpm webapp:setup
+    ```
+
+    Run this once during initial setup and again after any schema changes are applied.
+  </Step>
+
+  <Step title="Start the development server">
+    ```bash
+    pnpm webapp:dev
+    ```
+
+    The app will be available at:
+    - `https://localhost:3000` — if you completed the SSL setup
+    - `http://localhost:3000` — if you skipped SSL
+
+    The dev server includes hot reloading for React components, routes, styles, and server-side code.
+  </Step>
+</Steps>
+
+## Available scripts
+
+### Development
+
+| Command | Description |
+| --- | --- |
+| `pnpm webapp:dev` | Start the Remix development server |
+| `pnpm webapp:build` | Build the webapp for production |
+| `pnpm webapp:start` | Start the production build locally (loads root `.env`) |
+| `pnpm turbo build` | Build all packages and apps |
+| `pnpm turbo typecheck` | Run TypeScript checks across all packages |
+
+### Database
+
+| Command | Description |
+| --- | --- |
+| `pnpm webapp:setup` | Generate Prisma client and deploy migrations (initial setup) |
+| `pnpm db:generate` | Regenerate the Prisma client after schema changes |
+| `pnpm db:prepare-migration` | Create a new migration from schema changes |
+| `pnpm db:deploy-migration` | Apply pending migrations and regenerate the client |
+| `pnpm db:reset` | Reset the database — **destructive, cannot be undone** |
+
+### Code quality
+
+| Command | Description |
+| --- | --- |
+| `pnpm webapp:validate` | Run the full pipeline: Prisma gen, ESLint, Prettier, TypeScript, tests |
+| `pnpm turbo lint` | Run ESLint across all packages |
+| `pnpm run format` | Auto-format all code with Prettier |
+
+### Testing
+
+| Command | Description |
+| --- | --- |
+| `pnpm webapp:test -- --run` | Run all unit tests once (always use `--run` to avoid watch mode) |
+| `pnpm --filter @shelf/webapp test:e2e` | Run end-to-end tests |
+| `pnpm --filter @shelf/webapp test:e2e:dev` | Run E2E tests in development mode |
+| `pnpm --filter @shelf/webapp test:e2e:install` | Install Playwright browsers (first time only) |
+
+## Making database changes
+
+When you modify `packages/database/prisma/schema.prisma`:
+
+1. Create a migration:
+   ```bash
+   pnpm db:prepare-migration
+   ```
+2. Review the generated SQL in `packages/database/prisma/migrations/`.
+3. Apply the migration:
+   ```bash
+   pnpm db:deploy-migration
+   ```
+
+To browse your data visually:
+
+```bash
+pnpm --filter @shelf/webapp exec prisma studio
+```
+
+## Project structure
+
+```
+shelf.nu/
+├── .env.example                     # Environment template — copy to .env at root
+├── turbo.json                       # Turborepo pipeline config
+├── pnpm-workspace.yaml              # Workspace package definitions
+├── apps/
+│   └── webapp/                      # @shelf/webapp — Remix application
+│       └── app/
+│           ├── components/          # Reusable UI components
+│           ├── modules/             # Business logic (auth, asset, booking, …)
+│           ├── routes/              # Remix route modules
+│           └── utils/               # Utility functions
+└── packages/
+    └── database/                    # @shelf/database — Prisma client and types
+        └── prisma/
+            ├── schema.prisma        # Database schema
+            └── migrations/          # Migration history
+```
+
+Routes follow Remix flat-routes conventions: `assets._index.tsx` maps to `/assets`, `assets.new.tsx` maps to `/assets/new`, and so on.
+
+## Debugging
+
+### Port already in use
+
+```bash
+# Free port 3000 (macOS / Linux)
+lsof -ti:3000 | xargs kill -9
+```
+
+### SSL certificate errors
+
+- Make sure you ran `mkcert -install` to register the local certificate authority in your system trust store.
+- Regenerate the certificates if they appear expired or mis-signed:
+  ```bash
+  mkcert -key-file apps/webapp/.cert/key.pem -cert-file apps/webapp/.cert/cert.pem localhost 127.0.0.1 ::1
+  ```
+- If the issue persists, disable SSL by removing the `https` block from `apps/webapp/vite.config.ts` and setting `SERVER_URL=http://localhost:3000`.
+
+### Database connection errors
+
+- Verify your `DATABASE_URL` and `DIRECT_URL` values in the root `.env`.
+- Confirm your Supabase project is active (it may have paused due to inactivity on the free tier).
+- Double-check that the password in the connection string matches your Supabase database password.
+
+### Clean reinstall
+
+If you encounter dependency or build errors that aren't resolved by the above steps:
+
+```bash
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Core features" icon="boxes-stacked" href="/features/assets">
+    Explore asset tracking, bookings, kits, locations, and team roles.
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/configuration/environment-variables">
+    Review all available environment variables and feature flags.
+  </Card>
+  <Card title="Developer guide" icon="code" href="/developer/architecture">
+    Understand the codebase architecture, error handling, and hooks.
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/deployment/fly-io">
+    Deploy to Fly.io with Docker and GitHub Actions.
+  </Card>
+</CardGroup>

@@ -1,0 +1,142 @@
+---
+title: "Locations API Endpoints — Shelf.nu API Reference"
+description: "API reference for Shelf.nu location endpoints: fetch a location's ancestor/descendant hierarchy tree and perform bulk delete operations on locations."
+---
+
+The locations API provides endpoints for reading hierarchical location data and performing bulk mutations. Shelf.nu supports nested locations (for example: Building > Floor > Room > Shelf), and the tree endpoint exposes both the ancestor path and the full descendant subtree for any given location node.
+
+## GET /api/locations/:locationId/tree
+
+Returns the complete hierarchy context for a single location: the location itself, its ancestor chain (the path from root to this node), and the full subtree of all descendant locations.
+
+**Required permission:** `location:read`
+
+<ParamField path="locationId" type="string" required>
+  The ID of the location to fetch the tree for.
+</ParamField>
+
+**Example request**
+
+```bash
+GET /api/locations/clfloc456/tree
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "location": {
+      "id": "clfloc456",
+      "name": "Room 2B"
+    },
+    "ancestors": [
+      { "id": "clfloc100", "name": "Building HQ" },
+      { "id": "clfloc200", "name": "Floor 2" }
+    ],
+    "descendants": [
+      {
+        "id": "clfloc789",
+        "name": "Cabinet A",
+        "children": [
+          {
+            "id": "clfloc999",
+            "name": "Shelf 1",
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+<ResponseField name="data.location" type="object">
+  The requested location node.
+
+  <Expandable title="location properties">
+    <ResponseField name="id" type="string">
+      Location ID (cuid).
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Location display name.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.ancestors" type="object[]">
+  The ordered path from the root of the hierarchy to this location's parent. The first item is the root; the last is the immediate parent. Empty array if the location is at the root level.
+
+  <Expandable title="ancestor properties">
+    <ResponseField name="id" type="string">
+      Ancestor location ID.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Ancestor location name.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="data.descendants" type="object[]">
+  Recursive tree of child locations. Each node contains an `id`, `name`, and `children` array. The `children` array is empty for leaf nodes.
+
+  <Expandable title="descendant node properties">
+    <ResponseField name="id" type="string">
+      Location ID.
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Location name.
+    </ResponseField>
+    <ResponseField name="children" type="object[]">
+      Nested child nodes. Same shape as the parent. Empty array for leaf nodes.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The hierarchy and descendants are fetched in parallel server-side, so this endpoint is efficient even for deeply nested location trees.
+</Note>
+
+---
+
+## POST /api/locations.bulk-actions
+
+Performs a bulk operation across multiple locations. Currently supports bulk deletion.
+
+**Required permission:** `location:delete` for `bulk-delete`.
+
+<ParamField body="intent" type="string" required>
+  The operation to perform. Currently only `"bulk-delete"` is supported.
+</ParamField>
+
+<ParamField body="locationIds" type="string[]" required>
+  Array of location IDs to delete.
+</ParamField>
+
+<Warning>
+  Deleting a location is **permanent and cannot be undone**. Assets assigned to deleted locations will have their location cleared. Child locations are also deleted in a cascade.
+</Warning>
+
+**Example request**
+
+```bash
+POST /api/locations.bulk-actions
+
+intent=bulk-delete
+locationIds[]=clfloc456
+locationIds[]=clfloc789
+```
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+<ResponseField name="data.success" type="boolean">
+  `true` when all specified locations were deleted successfully.
+</ResponseField>

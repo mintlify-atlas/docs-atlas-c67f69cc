@@ -1,0 +1,141 @@
+---
+title: "Self-host Shelf.nu with Docker: community setup guide"
+description: "Run Shelf.nu on any host using the community Docker image. Covers the docker run command, environment variables, multi-platform builds, and ARM support."
+---
+
+Docker support for Shelf.nu is maintained by the community and lets you run Shelf on any host that supports containers — your own server, a VPS, or a home lab. The pre-built image is published to the GitHub Container Registry and supports both `linux/amd64` and `linux/arm64` architectures.
+
+<Note>
+  Docker support is a community effort led by [@anatolinicolae](https://github.com/anatolinicolae). Shelf Asset Management Inc. does not provide official support for Docker deployments, but accepts fixes and documentation contributions. Use at your own risk.
+</Note>
+
+## Prerequisites
+
+Docker does not bundle a Supabase instance, so you must set up your database and authentication separately before running the container.
+
+Complete these guides first:
+
+1. **[Supabase setup](/supabase-setup)** — Create your project, configure authentication, run migrations, and set up storage buckets.
+2. **[Local development](/local-development)** — Verify your environment variables and confirm migrations are applied.
+
+Once your Supabase project is ready and migrations have been deployed, you can run Shelf as a container.
+
+## Running Shelf with Docker
+
+Pull and start the latest image with a single `docker run` command. Replace every placeholder with your actual values:
+
+```bash
+docker run -d \
+  --name "shelf" \
+  -e "DATABASE_URL=postgres://USER:PASSWORD@HOST:6543/DB_NAME?pgbouncer=true" \
+  -e "DIRECT_URL=postgres://USER:PASSWORD@HOST:5432/DB_NAME" \
+  -e 'SUPABASE_ANON_PUBLIC=your-anon-public-key' \
+  -e 'SUPABASE_SERVICE_ROLE=your-service-role-key' \
+  -e 'SUPABASE_URL=https://your-instance-name.supabase.co' \
+  -e 'SESSION_SECRET=super-duper-s3cret' \
+  -e 'SERVER_URL=http://localhost:3000' \
+  -e 'MAPTILER_TOKEN=your-maptiler-token' \
+  -e 'SMTP_HOST=mail.example.com' \
+  -e 'SMTP_PORT=465' \
+  -e 'SMTP_USER=some-email@example.com' \
+  -e 'SMTP_FROM="Your Name from shelf.nu" <your-email@shelf.nu>' \
+  -e 'SMTP_PWD=super-safe-passw0rd' \
+  -e 'INVITE_TOKEN_SECRET=another-super-duper-s3cret' \
+  -p 3000:8080 \
+  --restart unless-stopped \
+  ghcr.io/shelf-nu/shelf.nu:latest
+```
+
+This maps port `8080` inside the container to port `3000` on your host. Open `http://localhost:3000` to access Shelf.
+
+### Environment variable reference
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | Pooled Postgres connection string (port 6543, `pgbouncer=true`) |
+| `DIRECT_URL` | Yes | Direct Postgres connection string (port 5432, used for migrations) |
+| `SUPABASE_URL` | Yes | Your Supabase project URL |
+| `SUPABASE_ANON_PUBLIC` | Yes | Supabase anon/public key from **API** settings |
+| `SUPABASE_SERVICE_ROLE` | Yes | Supabase service role key from **API** settings |
+| `SESSION_SECRET` | Yes | Random secret for signing session cookies (minimum 32 chars) |
+| `SERVER_URL` | Yes | The public URL where Shelf is accessible |
+| `INVITE_TOKEN_SECRET` | Yes | Random secret for signing invitation tokens |
+| `SMTP_HOST` | Yes | SMTP server hostname |
+| `SMTP_PORT` | Yes | SMTP port (typically 465 for SSL or 587 for TLS) |
+| `SMTP_USER` | Yes | SMTP username or email address |
+| `SMTP_PWD` | Yes | SMTP password or API key |
+| `SMTP_FROM` | Yes | Sender name and address for outgoing email |
+| `MAPTILER_TOKEN` | No | Enables map features for location tracking |
+| `ENABLE_PREMIUM_FEATURES` | No | Set to `false` to disable Stripe-gated features |
+
+`DATABASE_URL` and `DIRECT_URL` are both mandatory when using Supabase Cloud. `DATABASE_URL` routes through PgBouncer for normal application queries; `DIRECT_URL` is used by Prisma for migration commands.
+
+## Understanding the two Dockerfiles
+
+<Warning>
+  The repository contains two separate Dockerfiles that serve different purposes. Using the wrong one for your build target will produce an image that does not behave as expected.
+
+  - **`apps/webapp/Dockerfile`** — used by Fly.io. Its entrypoint is `start.sh`, which is specific to the Fly runtime.
+  - **`apps/webapp/Dockerfile.image`** — used for Docker/self-hosting. Its entrypoint is `docker-entrypoint.sh`, which is appropriate for container-based self-hosting.
+
+  When modifying either file, always verify you are editing the correct one for your deployment target.
+</Warning>
+
+By default, `docker build` uses `apps/webapp/Dockerfile` unless you specify a file with `--file`. Always pass `--file apps/webapp/Dockerfile.image` when building the self-hosted image.
+
+## Building locally
+
+If you want to build the image yourself instead of pulling from `ghcr.io`, use `docker buildx` to produce a multi-platform image:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag shelf-local \
+  --file apps/webapp/Dockerfile.image .
+```
+
+Run your locally-built image the same way as the published one — just replace the image name:
+
+```bash
+docker run -d \
+  --name "shelf" \
+  -e DATABASE_URL="your-database-url" \
+  -e DIRECT_URL="your-direct-url" \
+  -e SUPABASE_URL="your-supabase-url" \
+  shelf-local
+```
+
+Add the remaining required environment variables from the table above before exposing the container to production traffic.
+
+<Tip>
+  `docker buildx build` requires the BuildKit backend. Run `docker buildx create --use` once if you have not already set it up.
+</Tip>
+
+## ARM processor support
+
+The published image is built for both `linux/amd64` and `linux/arm64`, so it runs natively on ARM-based servers and Apple Silicon Macs without emulation.
+
+Verify the architecture inside the running container:
+
+<CodeGroup>
+
+```bash Linux / Pine A64
+docker run -it --rm \
+  --entrypoint /usr/bin/uname \
+  ghcr.io/shelf-nu/shelf.nu:latest -a
+# Expected: Linux ... aarch64 GNU/Linux
+```
+
+```bash macOS / Apple Silicon
+docker run -it --rm \
+  --platform linux/arm64 \
+  --entrypoint /usr/bin/uname \
+  ghcr.io/shelf-nu/shelf.nu:latest -a
+# Expected: Linux ... aarch64 GNU/Linux
+```
+
+</CodeGroup>
+
+## Contributing
+
+Docker-related improvements are welcome. To contribute a fix or documentation update, open a pull request against the [shelf.nu repository](https://github.com/Shelf-nu/shelf.nu). For questions, join the [Discord community](https://discord.gg/8he9W7aTJu).

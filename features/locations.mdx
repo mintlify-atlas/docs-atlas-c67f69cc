@@ -1,0 +1,156 @@
+---
+title: "Locations: Build a Hierarchy and Track Asset Storage"
+description: "Create nested locations in Shelf — buildings, floors, rooms, and shelves — assign assets and kits, geocode addresses, and log location activity."
+---
+
+Locations let you record where each asset or kit physically lives when it is not in use. Shelf supports a hierarchical location structure — you can create a building, nest floors inside it, then rooms inside each floor, all the way down to individual shelves or cabinets. Assigning an asset to a location makes it easy for your team to find equipment without asking around.
+
+<CardGroup cols={2}>
+  <Card title="Nested hierarchy" icon="sitemap">
+    Build a location tree up to 12 levels deep: buildings, floors, rooms, shelves, and more.
+  </Card>
+  <Card title="Asset and kit assignment" icon="box">
+    Assign any asset or kit to a location. Moving a kit automatically moves all its assets.
+  </Card>
+  <Card title="GPS tagging" icon="map-pin">
+    Enter an address and Shelf geocodes it to display the location on a map.
+  </Card>
+  <Card title="Location notes" icon="note-sticky">
+    Add notes and activity logs to each location to track what is stored there over time.
+  </Card>
+</CardGroup>
+
+## Creating a location
+
+<Steps>
+  <Step title="Open Locations">
+    Click **Locations** in the left sidebar, then click **New Location**.
+  </Step>
+  <Step title="Name the location">
+    Enter a name (required). Location names must be unique within your workspace.
+  </Step>
+  <Step title="Add optional details">
+    - **Description** — Notes about this location, access instructions, or special conditions.
+    - **Address** — A street address. Shelf automatically geocodes this to latitude/longitude for map display.
+    - **Parent location** — Select a parent to place this location inside a larger one (for example, set the parent of "Room 101" to "First Floor").
+  </Step>
+  <Step title="Upload an image">
+    Optionally add a photo of the location — a room photo, shelf label, or floor plan.
+  </Step>
+  <Step title="Save">
+    Click **Create Location**. The location appears in your list and is immediately available for assignment to assets.
+  </Step>
+</Steps>
+
+## Location hierarchy
+
+Locations in Shelf form a tree. Each location can have one parent and any number of children. The maximum nesting depth is 12 levels.
+
+**Example structure:**
+
+```text
+Main Office (building)
+├── Ground Floor
+│   ├── Reception
+│   └── Server Room
+│       ├── Rack A
+│       └── Rack B
+└── First Floor
+    ├── Open Plan
+    └── Studio A
+        ├── Camera Shelf
+        └── Lighting Cabinet
+```
+
+When you view a location detail page, you see:
+
+- The breadcrumb path from the root down to this location.
+- All direct child locations.
+- All assets and kits assigned to this specific location.
+
+<Info>
+Assets assigned to a child location (e.g., "Camera Shelf") do not automatically appear when you browse the parent location ("Studio A"). Assets are always assigned to a specific node in the hierarchy, not to the whole subtree. Use filters on the asset list to search by location including children.
+</Info>
+
+## Assigning assets to a location
+
+You can assign a location to an asset in several ways:
+
+<Tabs>
+  <Tab title="From the asset">
+    Open any asset, click **Edit**, and select a location from the **Location** dropdown. Save the asset. A note is automatically written to the asset's activity log recording the location change.
+  </Tab>
+  <Tab title="From the location">
+    Open a location page and click **Manage assets**. Search for assets and add or remove them from this location. Changes are logged for each affected asset.
+  </Tab>
+  <Tab title="Bulk update">
+    In the asset list, select multiple assets, then choose **Update location** from the bulk actions menu. All selected assets are moved to the chosen location.
+  </Tab>
+  <Tab title="Via kit">
+    Update a kit's location to move the kit and every asset inside it to the same location in one action. Individual asset location changes are blocked for assets that are part of a kit — always update via the kit.
+  </Tab>
+</Tabs>
+
+<Warning>
+If an asset belongs to a kit, you cannot change its location individually. Update the location at the kit level instead. This keeps the kit and all its assets in sync.
+</Warning>
+
+## GPS and map tagging
+
+When you create or edit a location, enter a physical address in the **Address** field. Shelf passes the address to a geocoder and stores the resulting latitude and longitude. The location page then shows:
+
+- The formatted address.
+- A map pin at the geocoded coordinates.
+
+This is useful for organizations that track assets across multiple physical sites — warehouses, offices, job sites — and want to see where locations are on a map.
+
+If you update an address, the coordinates are updated automatically.
+
+## Managing assets from the location page
+
+Each location detail page includes a list of all assets (and kits) currently assigned to it. From this view you can:
+
+- Search and filter assets at this location.
+- Filter by custodian to see who has what within the location.
+- Click any asset to open its detail page.
+- Add or remove assets using the **Manage assets** and **Manage kits** panels.
+
+The location page also shows the total valuation of all assets stored there — useful for insurance and asset tracking purposes.
+
+## Location notes and activity log
+
+Every location has its own activity log. Shelf automatically creates note entries when:
+
+- Assets are added to the location.
+- Assets are removed from the location.
+- The location's name, description, address, or parent is changed.
+- Kits are added or removed.
+
+You can also add manual notes to any location to record relevant information — for example, noting a room is undergoing renovation or that access requires a keycard.
+
+## Editing and deleting locations
+
+**To edit a location:** Open the location page, click the edit button (pencil icon), and update the fields. Changes to the name, description, address, or parent location are logged automatically.
+
+**Re-parenting a location:** You can move a location to a different parent at any time. Shelf validates that the new parent does not create a circular reference and that the resulting tree depth does not exceed the 12-level limit.
+
+**To delete a location:** Open the location and click **Delete**. Deleting a location does not delete any assets — it removes the location record and clears the location assignment from all affected assets.
+
+<Tip>
+To delete multiple locations at once, use the Locations list page, select them with the checkboxes, and choose **Delete** from the bulk actions menu.
+</Tip>
+
+<AccordionGroup>
+  <Accordion title="Can two locations have the same name?">
+    Location names must be unique within your workspace. If you need to distinguish between rooms with the same name in different buildings, include the building name or a prefix in the location name (e.g., "HQ - Room 101" and "Warehouse - Room 101").
+  </Accordion>
+  <Accordion title="Can I import locations via CSV?">
+    Yes. When importing assets via CSV, include a `location` column with the location name. If the location does not already exist, Shelf creates it automatically as a root-level location (no parent).
+  </Accordion>
+  <Accordion title="What is the maximum depth of nested locations?">
+    Shelf allows location hierarchies up to 12 levels deep. This is enforced when creating a new child location or re-parenting an existing one.
+  </Accordion>
+  <Accordion title="Are locations shared across workspaces?">
+    No. Each workspace (organization) has its own independent set of locations. Locations in one workspace are not visible in another.
+  </Accordion>
+</AccordionGroup>

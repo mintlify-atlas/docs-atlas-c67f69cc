@@ -1,0 +1,175 @@
+---
+title: "Custom Fields: Extend Assets with Your Own Metadata"
+description: "Add serial numbers, warranty dates, purchase prices, and more to assets using Shelf's seven custom field types — searchable, filterable, and CSV-ready."
+---
+
+Custom fields let you capture any metadata that matters to your organization beyond the built-in asset properties. Need to track serial numbers? Warranty expiry dates? Rental rates? Condition grades? Create a custom field for each and it appears on every asset form in your workspace. Custom field values are searchable, filterable, and included in CSV exports.
+
+<CardGroup cols={2}>
+  <Card title="Seven field types" icon="sliders">
+    Text, multiline text, number, amount, date, boolean, and option (single or multi-select).
+  </Card>
+  <Card title="Required or optional" icon="asterisk">
+    Mark fields as required to ensure they are always filled in when creating or editing an asset.
+  </Card>
+  <Card title="Category-scoped" icon="tag">
+    Attach custom fields to specific categories so they only appear on relevant assets.
+  </Card>
+  <Card title="Searchable and filterable" icon="magnifying-glass">
+    Custom field values are included in full-text search and available as advanced filter criteria.
+  </Card>
+</CardGroup>
+
+## Supported field types
+
+| Type | Use case examples |
+|---|---|
+| **Text** | Serial number, model number, asset tag, owner name |
+| **Multiline text** | Detailed notes, condition report, special instructions |
+| **Number** | Quantity, weight, asset count, unit count |
+| **Amount** | Purchase price, replacement cost, rental rate (stored with currency) |
+| **Date** | Purchase date, warranty expiry, last calibration date, next maintenance date |
+| **Boolean** | Is insured (yes/no), requires training (yes/no), under lease (yes/no) |
+| **Option** | Condition (Excellent/Good/Fair/Poor), department, project code |
+
+<Info>
+The **Amount** type stores a monetary value linked to your workspace's currency setting. The **Number** type is a plain numeric value with no currency formatting.
+</Info>
+
+## Creating a custom field
+
+<Steps>
+  <Step title="Go to Settings → Custom fields">
+    Open workspace settings and click **Custom fields** in the left menu.
+  </Step>
+  <Step title="Click New custom field">
+    Click the **New custom field** button.
+  </Step>
+  <Step title="Choose a field type">
+    Select the field type from the dropdown. Field type cannot be changed after creation.
+  </Step>
+  <Step title="Name the field">
+    Enter a name (required). Names must be unique within your workspace. Choose something descriptive — this is the label that appears on asset forms.
+  </Step>
+  <Step title="Add help text (optional)">
+    Add a short hint that appears below the field input on the asset form to guide users on what to enter.
+  </Step>
+  <Step title="Mark as required (optional)">
+    Toggle **Required** on to make this field mandatory when creating or editing an asset. Users cannot save an asset without providing a value for required fields.
+  </Step>
+  <Step title="Configure options (Option type only)">
+    For Option-type fields, add the list of choices that users can select. Options can be added when creating the field or updated later.
+  </Step>
+  <Step title="Restrict to categories (optional)">
+    Select one or more categories to limit this field to assets in those categories. If no categories are selected, the field appears on all assets regardless of category.
+  </Step>
+  <Step title="Save">
+    Click **Create**. The field is immediately active and appears on all relevant asset forms.
+  </Step>
+</Steps>
+
+## Managing custom fields
+
+### Editing a field
+
+You can edit a custom field's name, help text, required flag, options (for Option type), and category restrictions at any time from **Settings → Custom fields**. Click the field name or the edit icon to open the edit form.
+
+<Warning>
+The **field type cannot be changed** after a custom field is created. Changing the type would invalidate all existing values stored in that field. If you need a different type, create a new field and migrate your data manually using a CSV export and import.
+</Warning>
+
+### Activating and deactivating fields
+
+Each custom field can be toggled between active and inactive:
+
+- **Active** fields appear on asset forms and in the advanced asset index columns.
+- **Inactive** fields are hidden from asset forms. Existing values are preserved but not visible or editable until the field is reactivated.
+
+Use deactivation when a field is no longer relevant but you want to keep the historical data intact. You can bulk activate or deactivate multiple fields using the checkboxes on the Custom fields list page.
+
+### Deleting a field
+
+Deleting a custom field is a soft delete — the field is hidden and removed from all asset forms, but the stored values are not deleted from the database. This preserves your historical data while freeing up the field name for reuse.
+
+To delete: open the field, click **Delete**, and confirm. Deleted fields do not count toward your plan's custom field limit.
+
+## Using custom fields on assets
+
+Once created, custom fields appear on the asset creation and editing forms, grouped under **Custom fields** below the standard fields.
+
+- Fields scoped to a specific category are only visible when that category is selected for the asset.
+- Required fields display a validation error if left blank on save.
+- Option-type fields render as dropdowns.
+- Boolean fields render as toggles.
+- Date fields render as date pickers.
+
+Custom field values are recorded in the asset's activity log whenever they are changed, showing the previous and new value alongside the user who made the change.
+
+## Custom fields in search and filters
+
+Custom field values participate in Shelf's search and filtering system:
+
+<Tabs>
+  <Tab title="Full-text search">
+    The search bar on the asset list searches across all custom field text values. For example, searching for a serial number returns the asset even if the serial number is stored in a custom field.
+  </Tab>
+  <Tab title="Advanced filters">
+    In advanced filter mode, each custom field appears as a filter option. You can filter by specific values, ranges (for dates and numbers), and boolean states. Combine custom field filters with standard filters (status, category, location) for precise results.
+  </Tab>
+</Tabs>
+
+## Custom fields in CSV import and export
+
+### Importing custom field values
+
+In the CSV import template, custom fields are represented as column headers in this format:
+
+```text
+cf:Field Name[TYPE]
+```
+
+For example:
+
+```text
+cf:Serial Number[TEXT]
+cf:Purchase Date[DATE]
+cf:Condition[OPTION]
+cf:Insured[BOOLEAN]
+```
+
+If a custom field with the given name does not already exist, Shelf creates it automatically during import. For Option fields, any option values present in the CSV are added to the field's option list.
+
+### Exporting custom field values
+
+When you export assets to CSV, all custom field values are included as additional columns using the same `cf:Field Name[TYPE]` header format. This makes it straightforward to update values in a spreadsheet and re-import.
+
+## Custom fields and categories
+
+When you attach a custom field to one or more categories, it behaves as follows:
+
+- The field only appears on asset forms when the asset belongs to one of the specified categories.
+- If an asset's category is changed to one that does not include the field, the field is hidden on the form. The value is preserved but not displayed.
+- Fields with no category restriction appear on all asset forms regardless of category.
+
+This lets you build category-specific data models. For example:
+- A "Laptops" category might have fields for Serial Number, Warranty Expiry, and RAM.
+- A "Cameras" category might have fields for Lens Mount, Sensor Size, and Calibration Date.
+- An "Uncategorized" or global field like "Purchase Date" appears on all assets.
+
+<AccordionGroup>
+  <Accordion title="How many custom fields can I create?">
+    The number of active custom fields depends on your subscription plan. Deleted and inactive fields do not count toward the limit. Check your plan details under **Settings → Billing**.
+  </Accordion>
+  <Accordion title="Can I reorder custom fields on the asset form?">
+    Custom field display order is currently determined by creation date (newest last). Reordering is not supported through the UI.
+  </Accordion>
+  <Accordion title="Can I use custom fields in the asset index columns?">
+    Yes. In **Advanced mode** on the asset list, each active custom field is available as a toggleable column. You can show, hide, and reorder custom field columns alongside the built-in columns.
+  </Accordion>
+  <Accordion title="What happens to existing values when I rename a custom field?">
+    Renaming a field updates the field name everywhere it appears — on asset forms, the index column header, and in CSV exports. The stored values are not affected.
+  </Accordion>
+  <Accordion title="Can two custom fields have the same name?">
+    No. Custom field names must be unique within your workspace. This constraint is case-insensitive.
+  </Accordion>
+</AccordionGroup>

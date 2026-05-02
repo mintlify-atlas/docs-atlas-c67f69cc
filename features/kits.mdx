@@ -1,0 +1,148 @@
+---
+title: "Kits: Bundle and Manage Related Assets as One Unit"
+description: "Group related assets into kits in Shelf — assign shared custody, update location in one step, add to bookings, and scan a dedicated QR code."
+---
+
+A kit is a named bundle of related assets that you want to manage as a single unit. Instead of tracking a laptop, its charger, a dock, and a carrying case as four separate items every time they move together, you create one kit and manage all of them at once. When you assign custody of a kit, all its assets inherit the same custodian. When you book a kit, all its assets are reserved and checked out together.
+
+<CardGroup cols={2}>
+  <Card title="Group related assets" icon="layer-group">
+    Bundle anything that travels together — camera rigs, AV setups, toolkits, field kits.
+  </Card>
+  <Card title="Shared custody" icon="user-check">
+    Assign or release custody for all assets in a kit in a single action.
+  </Card>
+  <Card title="Kit QR code" icon="qrcode">
+    Every kit gets its own scannable QR code, independent of the individual asset codes.
+  </Card>
+  <Card title="Location sync" icon="location-dot">
+    Updating a kit's location moves all its assets to the same location automatically.
+  </Card>
+</CardGroup>
+
+## Creating a kit
+
+<Steps>
+  <Step title="Go to Kits">
+    Click **Kits** in the left sidebar, then click **New Kit**.
+  </Step>
+  <Step title="Fill in the details">
+    Enter a **name** for the kit (required). Optionally add:
+    - A description
+    - A category
+    - A location
+    - A cover image
+  </Step>
+  <Step title="Save the kit">
+    Click **Create Kit**. Shelf generates a QR code for the kit and adds it to your kit list.
+  </Step>
+  <Step title="Add assets to the kit">
+    Open the new kit and click **Add assets**. Search for the assets you want to bundle. Only assets that are currently **Available** and not already part of another kit can be added.
+  </Step>
+</Steps>
+
+## Kit statuses
+
+A kit's status reflects the collective state of its assets.
+
+| Status | Meaning |
+|---|---|
+| **Available** | The kit is not in custody and not checked out. Ready to use or book. |
+| **In Custody** | A team member has been assigned custody of the kit (and all its assets). |
+| **Checked Out** | The kit's assets have been checked out as part of an active booking. |
+
+<Note>
+A kit's status always mirrors its assets. When custody is assigned via the kit, all assets change to In Custody. When checked out via a booking, all assets change to Checked Out.
+</Note>
+
+## Adding and removing assets from a kit
+
+You can manage a kit's contents at any time from the kit detail page:
+
+- **Add assets** — Click **Add assets** on the kit page. Assets that are already in another kit, are In Custody, or are Checked Out cannot be added.
+- **Remove assets** — On the kit page, find the asset in the list and click the remove button. Removing an asset from a kit does not delete it — it becomes a standalone asset again.
+
+<Warning>
+Removing an asset from a kit while the kit is In Custody will not automatically release custody of that asset. Release the kit's custody first, then remove the asset.
+</Warning>
+
+## Assigning custody of a kit
+
+Assigning custody to a kit assigns the same custodian to every asset in the kit simultaneously.
+
+<Steps>
+  <Step title="Open the kit">
+    Navigate to the kit detail page.
+  </Step>
+  <Step title="Click Assign Custody">
+    Click the **Assign Custody** button and select a team member.
+  </Step>
+  <Step title="Confirm">
+    All assets in the kit are updated to In Custody and a note is written to each asset's activity log recording the assignment.
+  </Step>
+</Steps>
+
+To release custody, click **Release Custody** on the kit page. All assets revert to Available and their activity logs are updated.
+
+You can also assign or release custody for multiple kits at once from the Kits list using the bulk actions checkboxes.
+
+## Kits in bookings
+
+Adding a kit to a booking adds all of the kit's assets to the booking at once. When the booking is checked out, all kit assets move to Checked Out. When the booking is completed, all kit assets return to Available.
+
+**Adding a kit to a booking:**
+
+1. Open a booking in Draft status.
+2. Click **Add assets**, then switch to the **Kits** tab.
+3. Select the kit. If the kit is available for the booking's dates, all its assets are added.
+
+**Availability rules for kits:**
+
+- All assets in the kit must not be in custody.
+- No asset in the kit may be in a Reserved, Ongoing, or Overdue booking that overlaps your booking's dates.
+
+<Tip>
+When a kit is checked out, Shelf displays the booking's custodian on the kit page — not a separate "kit custodian" — because the custody comes from the booking itself.
+</Tip>
+
+## Kit location management
+
+Updating a kit's location moves both the kit and all its assets to the new location in a single operation. Individual asset location changes are not allowed for assets that belong to a kit — you must change the location at the kit level instead.
+
+This ensures that the kit and all its contents are always recorded as being in the same place.
+
+## Kit QR codes
+
+Every kit has its own QR code that works identically to asset QR codes. You can:
+
+- Print it and attach it to the kit's case or bag.
+- Scan it to open the kit page in a browser.
+- Use the scanner feature to add the kit to a booking by scanning its code.
+
+If you need to replace a kit's QR code (for example, if the label is damaged), open the kit detail page and use the **Update QR code** option to link a new unassigned QR sticker.
+
+## Bulk kit operations
+
+Select multiple kits from the Kits list to run bulk actions:
+
+| Action | Description |
+|---|---|
+| **Assign custody** | Assign one custodian to all selected kits and their assets. All selected kits must be Available. |
+| **Release custody** | Release custody from all selected kits. All selected kits must be In Custody. |
+| **Update location** | Move all selected kits and their assets to a new location. |
+| **Delete** | Permanently delete selected kits. Assets are not deleted — they become standalone assets. |
+
+<AccordionGroup>
+  <Accordion title="Can an asset belong to more than one kit?">
+    No. Each asset can only belong to one kit at a time. If you need an asset in two kits, you will need to create a duplicate asset or restructure your kits.
+  </Accordion>
+  <Accordion title="What happens to kit assets when the kit is deleted?">
+    When you delete a kit, the assets inside it are not deleted. They become standalone assets with no kit association. Their status, location, and custody records are preserved.
+  </Accordion>
+  <Accordion title="Can I import assets into a kit via CSV?">
+    Yes. In the CSV import format, include a `kit` column with the kit name. If the kit doesn't exist yet, Shelf creates it automatically. All assets with the same kit name will be bundled into that kit after import.
+  </Accordion>
+  <Accordion title="Can a kit have no assets?">
+    Yes. You can create an empty kit and add assets later. Empty kits are shown in the Kits list with a count of 0 assets and a notice prompting you to add items.
+  </Accordion>
+</AccordionGroup>

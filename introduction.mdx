@@ -1,0 +1,71 @@
+---
+title: "Shelf.nu: Open-source asset management for teams"
+description: "Shelf.nu is an open-source asset management platform for teams — track physical assets, schedule bookings, and manage custody across locations."
+---
+
+Shelf.nu is an open-source IT asset and equipment management platform built for teams who need to know what they have, where it is, and who's using it. Whether you're managing a few dozen devices or thousands of assets across multiple locations, Shelf gives you QR-tagged assets, calendar-based bookings, custody tracking, and role-based access control in a single product.
+
+<CardGroup cols={2}>
+  <Card title="Supabase setup" icon="database" href="/supabase-setup">
+    Configure your database, authentication, and storage buckets before running the app.
+  </Card>
+  <Card title="Local development" icon="laptop-code" href="/local-development">
+    Clone the repo, install dependencies, and start a local development server in minutes.
+  </Card>
+  <Card title="Core features" icon="boxes-stacked" href="/features/assets">
+    Explore asset tracking, bookings, kits, locations, team roles, and custom fields.
+  </Card>
+  <Card title="API reference" icon="code" href="/api/overview">
+    Explore the REST API endpoints for assets, bookings, kits, and locations.
+  </Card>
+</CardGroup>
+
+## What Shelf does
+
+Shelf tracks the full lifecycle of physical assets — from procurement to retirement. Every asset gets a QR code that team members can scan to check it out, update its location, or view its history. Bookings let you reserve equipment in advance and prevent double-bookings. Custody tracking ensures accountability: you always know who has what.
+
+<CardGroup cols={3}>
+  <Card title="Asset tracking" icon="tag" href="/features/assets">
+    QR-tagged assets with custom fields, categories, and full audit trails.
+  </Card>
+  <Card title="Bookings" icon="calendar" href="/features/bookings">
+    Reserve equipment with date ranges, prevent conflicts, and track check-ins.
+  </Card>
+  <Card title="Kits" icon="box-open" href="/features/kits">
+    Bundle related assets (laptop + charger + dock) and manage them as a unit.
+  </Card>
+  <Card title="Locations" icon="location-dot" href="/features/locations">
+    Hierarchical location trees with GPS tagging for rooms, floors, and buildings.
+  </Card>
+  <Card title="Team roles" icon="users" href="/features/team-roles">
+    Owner, Admin, Base, and Self Service roles with granular permissions.
+  </Card>
+  <Card title="Custom fields" icon="sliders" href="/features/custom-fields">
+    Add metadata like serial numbers, warranty dates, and purchase prices to any asset.
+  </Card>
+</CardGroup>
+
+## Get up and running
+
+<Steps>
+  <Step title="Create a Supabase project">
+    Set up a free Supabase project for your database, authentication, and file storage. Follow the [Supabase setup guide](/supabase-setup) for step-by-step instructions including OTP configuration and storage buckets.
+  </Step>
+  <Step title="Clone and configure">
+    Clone the repository, copy `.env.example` to `.env`, and fill in your Supabase credentials. The [local development guide](/local-development) covers SSL setup and all required environment variables.
+  </Step>
+  <Step title="Initialize the database">
+    Run `pnpm webapp:setup` to generate the Prisma client and apply all database migrations against your Supabase project.
+  </Step>
+  <Step title="Start the app">
+    Run `pnpm webapp:dev` and open `https://localhost:3000`. Create your first workspace and start adding assets.
+  </Step>
+</Steps>
+
+## Deploy to production
+
+Shelf deploys to [Fly.io](/deployment/fly-io) with GitHub Actions for automated CI/CD, or you can run it anywhere with [Docker](/deployment/docker).
+
+<Note>
+  Shelf is licensed under [AGPL-3.0](https://github.com/Shelf-nu/shelf.nu/blob/main/LICENSE). Community support is available on [Discord](https://discord.gg/8he9W7aTJu).
+</Note>

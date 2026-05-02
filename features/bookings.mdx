@@ -1,0 +1,199 @@
+---
+title: "Bookings: Schedule, Reserve, and Check Out Equipment"
+description: "Create date-range reservations in Shelf, add assets, manage booking statuses from Draft to Complete, and prevent scheduling conflicts automatically."
+---
+
+Bookings let you schedule equipment for a specific time period and assign it to a person. When a booking is checked out, the assets in it are marked as Checked Out so no one else can accidentally claim or double-book them. When the equipment is returned, checking in the booking marks assets as Available again. Bookings give your team a clear, conflict-free way to share resources.
+
+<CardGroup cols={2}>
+  <Card title="Date-range scheduling" icon="calendar">
+    Reserve assets for a specific start and end time. Shelf blocks conflicting requests automatically.
+  </Card>
+  <Card title="Checkout and check-in" icon="arrow-right-arrow-left">
+    Moving from Reserved → Ongoing marks assets as Checked Out. Completing a booking returns them to Available.
+  </Card>
+  <Card title="Self-service bookings" icon="user">
+    Self Service users can create their own booking requests, which admins approve by reserving them.
+  </Card>
+  <Card title="PDF export" icon="file-pdf">
+    Generate a printable PDF summary of any booking to use as a packing list or handoff document.
+  </Card>
+</CardGroup>
+
+## How bookings work
+
+A booking moves through a defined lifecycle:
+
+| Status | Meaning |
+|---|---|
+| **Draft** | Booking is being set up. Dates and custodian can still be changed. Assets are not blocked yet. |
+| **Reserved** | Booking is confirmed. Assets are locked for this time window — no one else can book them for the same period. |
+| **Ongoing** | Booking has been checked out. Assets are marked as Checked Out. |
+| **Overdue** | The return date has passed but the booking has not been checked in. |
+| **Complete** | All assets have been returned. Assets are back to Available. |
+| **Archived** | Booking has been archived for record-keeping. No further changes possible. |
+| **Cancelled** | Booking was cancelled before completion. Assets are released. |
+
+<Info>
+Bookings that are Complete can be automatically archived after a configurable number of days. Configure this under **Settings → Booking settings → Auto-archive**.
+</Info>
+
+## Creating a booking
+
+<Steps>
+  <Step title="Open Bookings">
+    Click **Bookings** in the left sidebar, then click **New Booking**.
+  </Step>
+  <Step title="Fill in booking details">
+    Enter a **name** for the booking (required). Optionally add a description and tags for categorization.
+  </Step>
+  <Step title="Select a date range">
+    Choose a **start date/time** and **end date/time**. The start date must be in the future when reserving. Shelf uses your browser's timezone to display dates correctly.
+  </Step>
+  <Step title="Assign a custodian">
+    Choose the team member who will be responsible for the booked equipment. This is the person who physically checks out and returns the assets.
+  </Step>
+  <Step title="Add assets">
+    Click **Add assets** to browse your inventory and select what to include. Only assets that are marked as **Available to Book** and are not already booked for this time window will appear.
+  </Step>
+  <Step title="Save as draft or reserve">
+    Click **Save** to store the booking as a Draft, or click **Reserve** to confirm the booking and lock the assets.
+  </Step>
+</Steps>
+
+<Warning>
+Reserving a booking validates availability at the time you click Reserve. If another booking is created for the same assets in the same window before you confirm, Shelf will show a conflict error and prevent the reservation.
+</Warning>
+
+## Adding assets to a booking
+
+You can add assets to a booking from multiple places:
+
+- **From the Booking page** — Click **Add assets** and search or filter your inventory.
+- **From the Asset list** — Select one or more assets, then choose **Add to booking** from the bulk actions menu.
+- **From an Asset detail page** — Click **Add to booking** on any individual asset.
+- **Via the QR scanner** — Open the scanner, scan an asset's QR code, and add it to an open booking.
+
+<Tip>
+Add entire kits to a booking by switching to the **Kits** tab in the asset picker. Adding a kit adds all of the kit's assets to the booking at once.
+</Tip>
+
+## Preventing double-bookings
+
+Shelf enforces availability at two levels:
+
+1. **UI filtering** — When you add assets to a booking, assets already reserved for the same time window are hidden from the picker.
+2. **Server-side validation** — When you click Reserve or Checkout, Shelf re-checks all assets for conflicts. If a conflict appeared since you loaded the page (e.g., a concurrent booking), the action is blocked with a clear error message listing the conflicting assets.
+
+Assets in `RESERVED`, `ONGOING`, or `OVERDUE` bookings that overlap your booking's dates are considered unavailable.
+
+## Checking out a booking
+
+When the booking start time arrives:
+
+<Steps>
+  <Step title="Open the booking">
+    Navigate to the booking from the Bookings list.
+  </Step>
+  <Step title="Click Check Out">
+    Click the **Check Out** button. Shelf confirms the booking has no conflicts, then marks all assets as Checked Out and transitions the booking to Ongoing.
+  </Step>
+  <Step title="Adjust dates if checking out early">
+    If you are checking out before the scheduled start time, Shelf will ask whether you want to update the booking's start date to now or keep the original.
+  </Step>
+</Steps>
+
+<Note>
+Assets that are currently **In Custody** (assigned to a team member outside of a booking) cannot be checked out in a booking. Release custody first, or remove those assets from the booking.
+</Note>
+
+## Checking in a booking
+
+When equipment is returned:
+
+<Steps>
+  <Step title="Open the booking">
+    Find the booking in your Bookings list (look for Ongoing or Overdue status).
+  </Step>
+  <Step title="Click Check In">
+    Click **Check In**. All assets are returned to Available and the booking moves to Complete.
+  </Step>
+  <Step title="Partial check-in">
+    If only some items have been returned, use the **scanner** to scan each returned asset individually. The booking stays Ongoing until all assets are checked in.
+  </Step>
+</Steps>
+
+## Self-service bookings
+
+Users with the **Self Service** role can create bookings and submit them. Their bookings start as Draft and must be reserved by an Admin or Owner.
+
+When a Self Service user reserves a booking:
+- Admins receive an email notification about the new pickup request.
+- The custodian (the Self Service user) also receives a confirmation.
+
+<Info>
+Whether Self Service users can see other bookings in the organization is controlled by **Settings → Permissions → Self Service can see bookings**.
+</Info>
+
+## Booking notes
+
+Every booking has its own activity log and comment thread. Shelf automatically writes notes when:
+
+- The booking is created
+- The name, description, dates, or custodian are changed
+- Tags are added or removed
+- The booking status changes (reserved, checked out, checked in, cancelled)
+
+You and your team can also add manual comments to communicate context or issues — for example, noting that one item was returned damaged.
+
+## Email notifications
+
+Shelf sends email notifications at key booking events:
+
+| Event | Recipients |
+|---|---|
+| Booking reserved | Custodian + admins (if enabled in booking settings) |
+| Booking updated | Custodian + previous custodian (if changed) |
+| Checkout reminder (1 hour before) | Custodian |
+| Check-in reminder (1 hour before return) | Custodian |
+| Booking overdue | Custodian + admins |
+| Booking completed | Custodian |
+| Booking cancelled | Custodian |
+
+Configure which events trigger admin notifications under **Settings → Booking settings**.
+
+## Generating a booking PDF
+
+Open any booking and click **Download PDF** to export a formatted summary document that includes:
+
+- Booking name, dates, custodian, and description
+- List of all assets with their categories
+- Booking status
+
+Use this as a packing list when handing off equipment or as a receipt when assets are returned.
+
+## Booking reminders and scheduling
+
+Shelf runs background jobs that automatically:
+
+- Send a checkout reminder 1 hour before the booking start time
+- Send a check-in reminder 1 hour before the booking end time
+- Mark a booking as Overdue when the end time passes without check-in
+- Auto-archive completed bookings after the configured delay (if enabled)
+
+These jobs are handled server-side with no action required from your team.
+
+<AccordionGroup>
+  <Accordion title="Can I change the dates of an active booking?">
+    Dates can only be changed while the booking is in **Draft** status. Once reserved, the dates are locked to protect the availability window. Checking out early or late does adjust the actual dates with your confirmation.
+  </Accordion>
+  <Accordion title="What happens if an asset is deleted while it's in a booking?">
+    The asset is removed from the booking automatically. The booking continues with the remaining assets.
+  </Accordion>
+  <Accordion title="Can I add assets to a booking that is already Ongoing?">
+    No. Once a booking transitions to Ongoing, its asset list is fixed.
+  </Accordion>
+  <Accordion title="How does early checkout work?">
+    When you check out before the scheduled start date, Shelf asks whether you want to update the start date to now (reflecting the actual checkout time) or keep the original scheduled date. The original date is preserved in the `originalFrom` field regardless.
+  </Accordion>
+</AccordionGroup>

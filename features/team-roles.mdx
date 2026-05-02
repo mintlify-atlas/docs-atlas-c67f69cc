@@ -1,0 +1,139 @@
+---
+title: "Team Roles: Owner, Admin, Base, and Self Service Users"
+description: "Shelf's four workspace roles control who can manage assets, approve bookings, and change settings. Learn permissions, invites, and SSO role mapping."
+---
+
+Shelf uses role-based access control to make sure each person on your team has exactly the access they need. When you invite someone to your workspace, you assign them one of four roles. Roles control what a user can see, create, edit, and approve — from managing the full workspace to simply making equipment requests.
+
+<CardGroup cols={2}>
+  <Card title="Four roles" icon="users">
+    Owner, Admin, Base, and Self Service — each designed for a different level of access.
+  </Card>
+  <Card title="Invite by email" icon="envelope">
+    Send email invitations directly from the Settings page. Invitees can accept without prior setup.
+  </Card>
+  <Card title="Multi-workspace" icon="building">
+    Users can belong to multiple workspaces with different roles in each one.
+  </Card>
+  <Card title="SSO integration" icon="id-badge">
+    Organizations using SSO can map identity provider groups to specific roles automatically.
+  </Card>
+</CardGroup>
+
+## The four roles
+
+### Owner
+
+There is exactly one Owner per workspace. The Owner has full control over everything in the workspace, including billing, subscription management, and workspace deletion. The Owner role cannot be transferred or replicated — every workspace has precisely one.
+
+### Admin
+
+Admins can do everything in the workspace except manage billing. Most organizations will have one or more Admins responsible for day-to-day operations — setting up assets, approving bookings, managing team members, and configuring workspace settings.
+
+### Base
+
+Base users have read and limited write access. They can view assets, create and manage their own bookings, and record notes. They cannot manage other team members, change workspace settings, or perform administrative bulk operations. The Base role is appropriate for regular staff who need to check out equipment but do not need to administer the system.
+
+### Self Service
+
+Self Service is the most restricted role. Self Service users can only interact with equipment through the booking flow — they submit booking requests that Admins must approve (reserve). They cannot browse the full asset list by default, and their view is limited to assets and bookings relevant to them. The Self Service role is designed for external collaborators, contractors, or large teams where most users should not have direct access to inventory.
+
+## Permissions matrix
+
+| Action | Owner | Admin | Base | Self Service |
+|---|:---:|:---:|:---:|:---:|
+| View all assets | ✓ | ✓ | ✓ | — |
+| Create and edit assets | ✓ | ✓ | — | — |
+| Delete assets | ✓ | ✓ | — | — |
+| Import / export assets (CSV) | ✓ | ✓ | — | — |
+| Assign and release custody | ✓ | ✓ | — | — |
+| Create and manage locations | ✓ | ✓ | — | — |
+| Create and manage kits | ✓ | ✓ | — | — |
+| Create custom fields | ✓ | ✓ | — | — |
+| Create bookings | ✓ | ✓ | ✓ | ✓ |
+| Reserve bookings (approve) | ✓ | ✓ | ✓ | — |
+| Check out bookings | ✓ | ✓ | ✓ | — |
+| Check in bookings | ✓ | ✓ | ✓ | — |
+| View all bookings | ✓ | ✓ | ✓ (configurable) | — (configurable) |
+| View custody of assets | ✓ | ✓ | ✓ (configurable) | — (configurable) |
+| Manage team members | ✓ | ✓ | — | — |
+| Invite users | ✓ | ✓ | — | — |
+| Change workspace settings | ✓ | ✓ | — | — |
+| Manage billing / subscription | ✓ | — | — | — |
+| Delete workspace | ✓ | — | — | — |
+
+<Info>
+The rows marked **(configurable)** are controlled by workspace settings. Owners and Admins can grant Base users the ability to see custody and bookings, and can grant Self Service users the ability to see bookings — under **Settings → Permissions**.
+</Info>
+
+## Inviting team members
+
+<Steps>
+  <Step title="Go to Settings → Team">
+    Open your workspace settings and navigate to the **Team** section.
+  </Step>
+  <Step title="Click Invite team members">
+    Enter the email address of the person you want to invite.
+  </Step>
+  <Step title="Assign a role">
+    Select one of the four roles: Owner (transfer), Admin, Base, or Self Service.
+  </Step>
+  <Step title="Add an optional message">
+    You can include a personal message in the invitation email (up to 1,000 characters).
+  </Step>
+  <Step title="Send the invitation">
+    Click **Send invite**. The recipient receives an email with a link to accept. Invitations expire after a set period. Pending invitations can be cancelled from the Team page.
+  </Step>
+</Steps>
+
+Once accepted, the team member appears in your workspace and can log in with their email. If they do not yet have a Shelf account, accepting the invite creates one.
+
+## Multi-workspace support
+
+A single Shelf user account can belong to multiple workspaces, with a different role in each. For example, a person could be an Admin in their company's primary workspace and a Base user in a partner organization's workspace.
+
+Switching workspaces is done from the workspace selector in the top navigation. Each workspace has its own completely independent set of assets, locations, bookings, and settings.
+
+<Tip>
+Shelf remembers the last workspace you used so you return to it automatically on your next login, even on a different device.
+</Tip>
+
+## Changing a team member's role
+
+Admins and Owners can change a team member's role at any time from **Settings → Team**. Click the role badge next to the team member's name and select a new role from the dropdown. Role changes take effect immediately. All role changes are logged in the workspace's role change audit log.
+
+## Removing a team member
+
+To remove a team member from a workspace, go to **Settings → Team**, find the member, and click **Remove**. The user's account is not deleted — they lose access to this workspace but retain access to any other workspaces they belong to. Any assets, bookings, or notes they created remain in the workspace and are not deleted.
+
+## SSO users and role assignment
+
+Workspaces with SSO enabled (Enterprise feature) can map identity provider (IdP) groups to Shelf roles:
+
+| IdP group mapping | Assigned role |
+|---|---|
+| Admin group | Admin |
+| Self Service group | Self Service |
+| Base group | Base |
+| No matching group | Base (default) |
+
+When an SSO user signs in for the first time, Shelf reads their group memberships from the IdP and assigns the appropriate role. If a user's group changes in the IdP, their Shelf role is updated on their next login.
+
+<Warning>
+SSO users cannot be directly invited like regular users. They gain access to a workspace automatically when they authenticate via SSO with a matching email domain. Role management for SSO users is primarily done through your IdP group configuration.
+</Warning>
+
+<AccordionGroup>
+  <Accordion title="Can I have multiple Owners?">
+    No. Each workspace has exactly one Owner. To change the Owner, the current Owner must transfer ownership from their account settings. The previous Owner becomes an Admin after the transfer.
+  </Accordion>
+  <Accordion title="Can a Base user approve bookings made by Self Service users?">
+    Base users can reserve (approve) their own bookings. By default, they cannot approve bookings created by other users. Only Admins and Owners can approve bookings for other users.
+  </Accordion>
+  <Accordion title="Can a Self Service user see who has an asset in custody?">
+    By default, no. This visibility can be enabled per-workspace under **Settings → Permissions → Self Service can see custody**.
+  </Accordion>
+  <Accordion title="What happens to a user's data if they are removed from a workspace?">
+    Their assets, bookings, notes, and activity logs remain in the workspace. Only their access is revoked. You can reassign their assets and bookings to other team members after removal.
+  </Accordion>
+</AccordionGroup>

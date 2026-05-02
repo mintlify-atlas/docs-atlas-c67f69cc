@@ -1,0 +1,332 @@
+---
+title: "Assets API Endpoints — Shelf.nu REST API Reference"
+description: "Reference for Shelf.nu asset API endpoints: list assets by ID, bulk assign custody, update location, update category, assign tags, and mark availability."
+---
+
+The assets API covers retrieval of asset data for UI components and all bulk mutation operations. All endpoints require an authenticated session with appropriate organization permissions.
+
+## GET /api/assets
+
+Fetches a list of assets by their IDs. Used by popover and preview components to show asset details without a full page load.
+
+**Required permission:** `asset:read`
+
+<ParamField query="ids" type="string" required>
+  Comma-separated list of asset IDs to fetch. Returns an empty array if omitted or blank.
+</ParamField>
+
+**Example request**
+
+```bash
+GET /api/assets?ids=clfabc123,clfdef456
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "assets": [
+      {
+        "id": "clfabc123",
+        "title": "MacBook Pro 14\"",
+        "mainImage": "https://..."
+      },
+      {
+        "id": "clfdef456",
+        "title": "USB-C Hub",
+        "mainImage": null
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+<ResponseField name="data.assets" type="object[]">
+  Array of matching assets scoped to the caller's organization.
+
+  <Expandable title="asset properties">
+    <ResponseField name="id" type="string">
+      Asset ID (cuid).
+    </ResponseField>
+    <ResponseField name="title" type="string">
+      Asset display name.
+    </ResponseField>
+    <ResponseField name="mainImage" type="string | null">
+      URL of the asset's primary image, or `null` if none.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## POST /api/assets.bulk-assign-custody
+
+Assigns custody of multiple assets to a team member. Assets are marked as checked out and become unavailable until released.
+
+**Required permission:** `asset:custody`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to check out.
+</ParamField>
+
+<ParamField body="custodian" type="object" required>
+  The team member receiving custody.
+
+  <Expandable title="custodian properties">
+    <ParamField body="custodian.id" type="string" required>
+      Team member ID.
+    </ParamField>
+    <ParamField body="custodian.name" type="string" required>
+      Team member display name (used in audit notes).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters from the current asset list URL. Required when bulk-selecting all assets across a filtered result set (the `ALL_SELECTED_KEY` pattern).
+</ParamField>
+
+<Note>
+  Users with the `SELF_SERVICE` role can only assign custody to themselves. Attempting to assign to another team member returns a `403`.
+</Note>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.bulk-update-location
+
+Moves multiple assets to a new location.
+
+**Required permission:** `asset:update`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to move.
+</ParamField>
+
+<ParamField body="newLocationId" type="string" required>
+  ID of the destination location.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters for select-all operations.
+</ParamField>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.bulk-update-category
+
+Assigns a category to multiple assets at once.
+
+**Required permission:** `asset:update`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to update.
+</ParamField>
+
+<ParamField body="category" type="string" required>
+  ID of the category to assign.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters for select-all operations.
+</ParamField>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.bulk-assign-tags
+
+Adds or removes tags from multiple assets. The operation mode (add vs. remove) is controlled by a query parameter.
+
+**Required permission:** `asset:update`
+
+<ParamField query="remove" type="boolean" default="false">
+  When `true`, the specified tags are removed from the selected assets rather than added.
+</ParamField>
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs.
+</ParamField>
+
+<ParamField body="tags" type="string[]" required>
+  Array of tag IDs to add or remove.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters for select-all operations.
+</ParamField>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.bulk-mark-availability
+
+Marks multiple assets as available or not available for booking.
+
+**Required permission:** `asset:update`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to update.
+</ParamField>
+
+<ParamField body="type" type="string" required>
+  Availability state to set. One of `"available"` or `"unavailable"`.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters for select-all operations.
+</ParamField>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.bulk-release-custody
+
+Releases custody of multiple assets, making them available again.
+
+**Required permission:** `asset:custody`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to check in.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters for select-all operations.
+</ParamField>
+
+<Note>
+  Users with the `SELF_SERVICE` role can only release custody of assets assigned to their own account. Attempting to release custody of another user's assets returns a `403`.
+</Note>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## POST /api/assets.add-to-booking
+
+Adds one or more assets to an existing booking.
+
+**Required permission:** `booking:update`
+
+<ParamField body="id" type="string" required>
+  Booking ID to add the assets to.
+</ParamField>
+
+<ParamField body="assetsIds" type="string[]" required>
+  Array of asset IDs to add.
+</ParamField>
+
+<ParamField body="addOnlyRestAssets" type="boolean" default="false">
+  When `true`, assets that are already in the booking are skipped rather than causing an error.
+</ParamField>
+
+**Example response**
+
+```json
+{
+  "data": {
+    "success": true,
+    "bookingId": "clfbooking789"
+  },
+  "error": null
+}
+```
+
+<Warning>
+  If `addOnlyRestAssets` is `false` and any of the specified assets are already in the booking, the entire request fails with a descriptive error message.
+</Warning>
+
+---
+
+## GET /api/assets.get-assets-for-bulk-qr-download
+
+Returns asset data and pre-generated QR code objects for bulk PDF/print download. Limited to 100 assets per request.
+
+**Required permission:** `qr:read`
+
+<ParamField query="assetIds" type="string[]" required>
+  One or more `assetIds` query parameters. Pass the special value `ALL_SELECTED_KEY` (`"ALL_SELECTED"`) to select all assets matching the current search filters.
+</ParamField>
+
+<ParamField query="currentSearchParams" type="string">
+  Serialized search params. Required when `assetIds` contains `ALL_SELECTED_KEY`.
+</ParamField>
+
+<Warning>
+  Requests for more than 100 assets return a `400` error. Reduce the selection and retry.
+</Warning>
+
+**Example response**
+
+```json
+{
+  "data": {
+    "assets": [
+      {
+        "id": "clfabc123",
+        "title": "MacBook Pro 14\"",
+        "sequentialId": "SHELF-0042",
+        "createdAt": "2024-01-15T10:00:00.000Z",
+        "qr": {
+          "id": "qrclfabc123",
+          "src": "data:image/png;base64,...",
+          "size": "medium"
+        }
+      }
+    ],
+    "qrIdDisplayPreference": "sequential",
+    "showShelfBranding": true
+  },
+  "error": null
+}
+```

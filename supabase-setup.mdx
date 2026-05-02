@@ -1,0 +1,267 @@
+---
+title: "Set up Supabase for Shelf.nu: database, auth, and storage"
+description: "Create a Supabase project, configure connection pooling, set up OTP authentication, create storage buckets, and complete your .env file."
+---
+
+Shelf.nu uses Supabase for its PostgreSQL database, user authentication, and file storage. This guide walks you through every configuration step — from creating a new project to generating session secrets — so your local environment is ready to run.
+
+<Steps>
+  <Step title="Create your Supabase project">
+    1. Sign in to [Supabase](https://supabase.com/) or create a free account.
+    2. Click **New project** and choose your organization (or create one).
+    3. Fill in the project details:
+       - **Name**: `shelf-nu` (or any name you prefer)
+       - **Database password**: Create a strong password and save it — you'll need it in your `.env` file.
+       - **Region**: Choose the region closest to you.
+       - **Pricing plan**: The free tier is sufficient for development.
+    4. Click **Create new project** and wait 1–2 minutes for provisioning to complete.
+  </Step>
+
+  <Step title="Get your connection strings">
+    ### Database URLs
+
+    1. Click the **Connect** button in your project header.
+    2. Select **ORM** → **Prisma**.
+    3. Copy both connection strings and add them to your `.env` file, replacing `[YOUR-PASSWORD]` with your actual database password:
+
+    ```bash
+    # Connection pooling — used by the app at runtime
+    DATABASE_URL="postgres://postgres.xxxxx:[YOUR-PASSWORD]@xxx.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+    # Direct connection — used by Prisma for migrations
+    DIRECT_URL="postgres://postgres.xxxxx:[YOUR-PASSWORD]@xxx.supabase.com:5432/postgres"
+    ```
+
+    ### API keys
+
+    1. Go to **Project Settings** → **API keys**.
+    2. Copy the three values and add them to your `.env` file:
+
+    ```bash
+    SUPABASE_URL="https://your-project-ref.supabase.co"
+    SUPABASE_ANON_PUBLIC="your-anon-public-key"
+    SUPABASE_SERVICE_ROLE="your-service-role-key"
+    ```
+  </Step>
+
+  <Step title="Set connection pooling mode to Transaction">
+    Shelf requires PgBouncer in Transaction mode to work correctly with Prisma.
+
+    1. Go to **Project Settings** → **Database**.
+    2. Find the **Connection pooling** section.
+    3. Set **Mode** to **Transaction**.
+    4. Click **Save**.
+  </Step>
+
+  <Step title="Configure authentication">
+    ### URL configuration
+
+    1. Go to **Authentication** → **URL Configuration**.
+    2. Set **Site URL** to:
+       - `https://localhost:3000` if you plan to use local SSL (recommended)
+       - `http://localhost:3000` if you prefer to run without SSL
+    3. Under **Redirect URLs**, add all of the following:
+
+    ```
+    https://localhost:3000/reset-password
+    http://localhost:3000/reset-password
+    https://your-staging-domain.com/reset-password
+    https://your-live-domain.com/reset-password
+    ```
+
+    <Note>
+      Include both HTTP and HTTPS localhost redirect URLs so the app works regardless of your local SSL configuration.
+    </Note>
+
+    ### Set OTP length to 6 digits
+
+    <Warning>
+      Shelf.nu only accepts 6-digit OTP codes. Supabase recently changed its default to 8 digits. If you skip this step, users will not be able to sign up or log in.
+    </Warning>
+
+    1. Go to **Authentication** → **Sign In / Providers** → **Email**.
+    2. Scroll down to **OTP Settings**.
+    3. Set **OTP Length** to **6**.
+    4. Click **Save**.
+
+    ### Configure email templates
+
+    Shelf uses OTP codes instead of magic links. You need to update three email templates so they send the token rather than a link.
+
+    Go to **Authentication** → **Email Templates** and replace the body of each template:
+
+    <AccordionGroup>
+      <Accordion title="Confirm signup template">
+        ```html
+        <p>
+          To confirm your account, please use the following One Time Password (OTP):
+        </p>
+        <h2><b>{{ .Token }}</b></h2>
+        <p>
+          Don't share this OTP with anyone. Our customer service team will never ask you
+          for your password, OTP, credit card, or banking info. We hope to see you again
+          soon.
+        </p>
+        ```
+      </Accordion>
+
+      <Accordion title="Magic link template">
+        ```html
+        <p>To authenticate, please use the following One Time Password (OTP):</p>
+        <h2><b>{{ .Token }}</b></h2>
+        <p>
+          Don't share this OTP with anyone. Our customer service team will never ask you
+          for your password, OTP, credit card, or banking info. We hope to see you again
+          soon.
+        </p>
+        ```
+      </Accordion>
+
+      <Accordion title="Reset password template">
+        ```html
+        <h2>Reset Password</h2>
+        <p>To reset your password, please use the following (OTP):</p>
+        <h2><b>{{ .Token }}</b></h2>
+        <p>
+          Don't share this OTP with anyone. Our customer service team will never ask you
+          for your password, OTP, credit card, or banking info. We hope to see you again
+          soon.
+        </p>
+        ```
+      </Accordion>
+    </AccordionGroup>
+
+    Click **Save** after updating each template.
+  </Step>
+
+  <Step title="Create storage buckets">
+    Shelf needs four storage buckets. For each one, go to **Storage** → **Buckets** → **Create bucket**, then configure policies as described below.
+
+    After creating each bucket, click on it, go to **Policies**, and create a policy covering **INSERT**, **UPDATE**, and **DELETE** with the expression shown. Set target roles to `authenticated` and `anon`.
+
+    <Note>
+      These policies block direct browser access to modify files while allowing the server to manage them securely via the service role key.
+    </Note>
+
+    | Bucket name        | Public | Policy expression                                   |
+    | ------------------ | ------ | --------------------------------------------------- |
+    | `profile-pictures` | Yes    | `(bucket_id = 'profile-pictures'::text) AND (false)` |
+    | `assets`           | No     | `(bucket_id = 'assets'::text) AND (false)`           |
+    | `kits`             | No     | `(bucket_id = 'kits'::text) AND (false)`             |
+    | `files`            | Yes    | `(bucket_id = 'files'::text) AND (false)`            |
+  </Step>
+
+  <Step title="Complete your .env file">
+    Your `.env` file lives at the **monorepo root** (not inside `apps/webapp/`). Copy `.env.example` to `.env` and fill in all required values:
+
+    ```bash
+    # Database connections (from Step 2)
+    DATABASE_URL="postgres://{USER}:{PASSWORD}@{HOST}:6543/{DB_NAME}?pgbouncer=true"
+    DIRECT_URL="postgres://{USER}:{PASSWORD}@{HOST}:5432/{DB_NAME}"
+
+    # Supabase API (from Step 2)
+    SUPABASE_URL="https://{YOUR_INSTANCE_NAME}.supabase.co"
+    SUPABASE_ANON_PUBLIC="{ANON_PUBLIC}"
+    SUPABASE_SERVICE_ROLE="{SERVICE_ROLE}"
+
+    # App configuration
+    SERVER_URL="https://localhost:3000"  # With SSL (recommended)
+    # SERVER_URL="http://localhost:3000"  # Without SSL
+    APP_NAME="Shelf"
+    FINGERPRINT="a-custom-host-fingerprint"
+
+    # Session security (see Step 7)
+    SESSION_SECRET="super-duper-s3cret"
+    INVITE_TOKEN_SECRET="secret-test-invite"
+
+    # Features
+    ENABLE_PREMIUM_FEATURES="false"
+    DISABLE_SIGNUP="false"
+
+    # Email (required for auth — see Step 8)
+    SMTP_HOST="mail.example.com"
+    SMTP_PORT=465
+    SMTP_USER="some-email@example.com"
+    SMTP_PWD="super-safe-passw0rd"
+    SMTP_FROM="Carlos from shelf.nu <carlos@shelf.nu>"
+
+    # Map integration (optional)
+    MAPTILER_TOKEN="maptiler-token"
+    GEOCODING_USER_AGENT="Your App Name (https://yoursite.com)"
+    ```
+
+    <Note>
+      For a complete list of every available environment variable including Stripe, Sentry, and analytics, see the `.env.example` file at the monorepo root.
+    </Note>
+  </Step>
+
+  <Step title="Generate session secrets">
+    Generate cryptographically secure random strings for the three secret fields in your `.env`:
+
+    ```bash
+    # Run each command and copy the output to the corresponding variable
+    openssl rand -hex 32   # → SESSION_SECRET
+    openssl rand -hex 32   # → INVITE_TOKEN_SECRET
+    openssl rand -hex 32   # → FINGERPRINT
+    ```
+  </Step>
+
+  <Step title="Configure email (SMTP)">
+    Shelf requires SMTP to send OTP codes for sign-up and password reset. Any SMTP provider works — Gmail app passwords, SendGrid, Mailgun, or your own mail server.
+
+    Update the four `SMTP_*` variables in your `.env` with your provider's credentials:
+
+    ```bash
+    SMTP_HOST="smtp.yourprovider.com"
+    SMTP_PORT=465
+    SMTP_USER="you@example.com"
+    SMTP_PWD="yourSMTPpassword"
+    SMTP_FROM="You from Shelf.nu <you@example.com>"
+    ```
+
+    <Note>
+      For local development you can use a service like [Mailtrap](https://mailtrap.io/) or [Resend](https://resend.com/) with a free tier to capture outbound emails without delivering them to real inboxes.
+    </Note>
+  </Step>
+</Steps>
+
+## Optional integrations
+
+### Map integration
+
+Sign up for a free [MapTiler](https://www.maptiler.com/) account to enable location map views:
+
+```bash
+MAPTILER_TOKEN="your_token_here"
+```
+
+### Geocoding
+
+Shelf uses [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org/) to convert location addresses into map coordinates. No API key or registration is required.
+
+Set the user agent to identify your deployment:
+
+```bash
+GEOCODING_USER_AGENT="My Company Assets (https://assets.mycompany.com)"
+```
+
+Addresses are geocoded on first use and cached in the database. The service is rate-limited to one request per second, which Shelf handles automatically.
+
+<Warning>
+  Nominatim is a free service running on donated servers. Review the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/) before deploying. For high-volume production use, consider a commercial geocoding API or running your own Nominatim instance.
+</Warning>
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Database connection error | Wrong password or connection string | Re-copy strings from Supabase → Connect → Prisma and verify the password |
+| Users can't sign up or log in | OTP length is not 6 | Go to Authentication → Sign In / Providers → Email → set OTP Length to 6 |
+| File uploads fail | Missing bucket or policy | Verify all four buckets exist with the correct INSERT/UPDATE/DELETE policies |
+| Email not sending | Bad SMTP credentials | Test your credentials with a standalone SMTP client first |
+
+For further help, join the [Discord community](https://discord.gg/8he9W7aTJu) or [open an issue on GitHub](https://github.com/Shelf-nu/shelf.nu/issues).
+
+## Next steps
+
+With Supabase configured, continue to the [local development guide](/local-development) to clone the repository, install dependencies, and start the dev server.

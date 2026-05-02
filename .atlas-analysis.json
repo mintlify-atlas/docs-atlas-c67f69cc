@@ -1,0 +1,111 @@
+{
+  "projectType": "saas",
+  "projectName": "Shelf.nu",
+  "projectDescription": "An open-source IT asset and equipment management platform for tracking physical assets, scheduling bookings, and managing custody across teams and locations.",
+  "theme": "almond",
+  "primaryColor": "#242424",
+  "lightColor": "#eb6c1e",
+  "darkColor": "#f0bc8c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "supabase-setup",
+              "local-development"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/assets",
+              "features/bookings",
+              "features/kits",
+              "features/locations",
+              "features/team-roles",
+              "features/custom-fields"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/app-configuration",
+              "configuration/environment-variables",
+              "configuration/sso"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/fly-io",
+              "deployment/docker"
+            ]
+          },
+          {
+            "group": "Developer Guide",
+            "pages": [
+              "developer/architecture",
+              "developer/error-handling",
+              "developer/hooks",
+              "developer/contributing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "api/assets",
+              "api/bookings",
+              "api/locations",
+              "api/kits"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "QR asset tags — generate and print QR codes, scan with any phone",
+    "Bookings and reservations — schedule equipment with calendar integration",
+    "Custody tracking — assign assets to team members",
+    "Hierarchical location management with GPS tagging",
+    "Role-based access control (Owner, Admin, Base, Self Service)",
+    "Custom fields for asset metadata",
+    "Kits — bundle related assets and manage as a unit",
+    "CSV import/export for bulk operations",
+    "Asset reminders for maintenance and warranty alerts",
+    "Multi-workspace support for separate organizations",
+    "Built-in QR/barcode scanner with bulk actions",
+    "SAML SSO integration via Supabase Auth"
+  ],
+  "publicApiSurface": [
+    "GET /api/assets — list and filter assets",
+    "POST /api/assets — create asset",
+    "GET /api/bookings.get-all — list bookings",
+    "POST /api/bookings.bulk-actions — bulk booking operations",
+    "POST /api/assets.bulk-assign-custody — bulk custody assignment",
+    "POST /api/assets.bulk-update-location — bulk location update",
+    "POST /api/assets.add-to-booking — add assets to a booking",
+    "GET /api/kits — list kits",
+    "POST /api/kits.bulk-actions — bulk kit operations",
+    "POST /api/locations.bulk-actions — bulk location operations",
+    "GET /api/user.entity-counts — user entity counts",
+    "POST /api/settings.invite-user — invite user to workspace",
+    "GET /api/public-stats — public platform statistics"
+  ]
+}

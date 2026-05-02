@@ -1,0 +1,293 @@
+---
+title: "Kits API Endpoints — Shelf.nu REST API Reference"
+description: "API reference for Shelf.nu kit endpoints: list kits by ID, bulk delete, assign or release custody, update kit location, and add or remove assets from kits."
+---
+
+Kits are named bundles of assets that can be managed as a unit — checked out, located, and assigned to a team member together. The kits API exposes endpoints for fetching kit data and performing bulk lifecycle operations across kits and their assets.
+
+## GET /api/kits
+
+Fetches a list of kits by their IDs. Used by popover and preview components to show kit details including contained assets.
+
+**Required permission:** `kit:read`
+
+<ParamField query="ids" type="string" required>
+  Comma-separated list of kit IDs to fetch. Returns an empty array if omitted or blank.
+</ParamField>
+
+**Example request**
+
+```bash
+GET /api/kits?ids=clfkit123,clfkit456
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "kits": [
+      {
+        "id": "clfkit123",
+        "name": "Filming Kit A",
+        "image": "https://...",
+        "imageExpiration": null,
+        "_count": { "assets": 4 },
+        "assets": [
+          {
+            "id": "clfabc123",
+            "title": "Sony A7 IV",
+            "mainImage": "https://...",
+            "mainImageExpiration": null,
+            "category": { "name": "Cameras" }
+          }
+        ]
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+<ResponseField name="data.kits" type="object[]">
+  Array of kits scoped to the caller's organization, sorted by name.
+
+  <Expandable title="kit properties">
+    <ResponseField name="id" type="string">
+      Kit ID (cuid).
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Kit display name.
+    </ResponseField>
+    <ResponseField name="image" type="string | null">
+      URL of the kit's cover image, or `null` if none.
+    </ResponseField>
+    <ResponseField name="imageExpiration" type="string | null">
+      ISO 8601 expiration datetime for the signed image URL, or `null` for permanent URLs.
+    </ResponseField>
+    <ResponseField name="_count.assets" type="number">
+      Total number of assets in the kit.
+    </ResponseField>
+    <ResponseField name="assets" type="object[]">
+      Assets in the kit, sorted by title.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## POST /api/kits.bulk-actions
+
+Performs a bulk lifecycle operation across multiple kits. The specific operation is determined by the `intent` field.
+
+**Required permission:** Varies by intent — see the table below.
+
+| Intent | Required permission |
+| --- | --- |
+| `bulk-delete` | `kit:delete` |
+| `bulk-assign-custody` | `kit:custody` |
+| `bulk-release-custody` | `kit:custody` |
+| `bulk-update-location` | `kit:update` |
+
+<ParamField body="intent" type="string" required>
+  The bulk operation to perform. One of:
+
+  - `bulk-delete`
+  - `bulk-assign-custody`
+  - `bulk-release-custody`
+  - `bulk-update-location`
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters. Required when using select-all across filtered results.
+</ParamField>
+
+<Tabs>
+  <Tab title="bulk-delete">
+    Permanently deletes the selected kits. Assets within the kits are **not** deleted — they are detached from the kit and become standalone assets.
+
+    <ParamField body="kitIds" type="string[]" required>
+      Array of kit IDs to delete.
+    </ParamField>
+
+    ```bash
+    POST /api/kits.bulk-actions
+
+    intent=bulk-delete
+    kitIds[]=clfkit123
+    kitIds[]=clfkit456
+    ```
+  </Tab>
+  <Tab title="bulk-assign-custody">
+    Assigns custody of multiple kits (and all their assets) to a team member.
+
+    <ParamField body="kitIds" type="string[]" required>
+      Array of kit IDs.
+    </ParamField>
+
+    <ParamField body="custodian" type="object" required>
+      The team member receiving custody.
+
+      <Expandable title="custodian properties">
+        <ParamField body="custodian.id" type="string" required>
+          Team member ID.
+        </ParamField>
+        <ParamField body="custodian.name" type="string" required>
+          Team member display name.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+
+    <Note>
+      `SELF_SERVICE` users can only assign custody to themselves. Requesting custody for another team member returns a `403`.
+    </Note>
+
+    ```bash
+    POST /api/kits.bulk-actions
+
+    intent=bulk-assign-custody
+    kitIds[]=clfkit123
+    custodian[id]=clfteam789
+    custodian[name]=Jane Smith
+    ```
+  </Tab>
+  <Tab title="bulk-release-custody">
+    Releases custody of the selected kits, making them and their assets available again.
+
+    <ParamField body="kitIds" type="string[]" required>
+      Array of kit IDs to release.
+    </ParamField>
+
+    <Note>
+      `SELF_SERVICE` users can only release kits that are in their own custody.
+    </Note>
+
+    ```bash
+    POST /api/kits.bulk-actions
+
+    intent=bulk-release-custody
+    kitIds[]=clfkit123
+    ```
+  </Tab>
+  <Tab title="bulk-update-location">
+    Moves multiple kits to a new location.
+
+    <ParamField body="kitIds" type="string[]" required>
+      Array of kit IDs to move.
+    </ParamField>
+
+    <ParamField body="newLocationId" type="string" required>
+      Destination location ID.
+    </ParamField>
+
+    ```bash
+    POST /api/kits.bulk-actions
+
+    intent=bulk-update-location
+    kitIds[]=clfkit123
+    newLocationId=clfloc456
+    ```
+  </Tab>
+</Tabs>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## GET + POST /api/assets.bulk-add-to-kit
+
+**GET** — Returns a list of all kits in the organization that are eligible to receive assets (any kit not in `CHECKED_OUT` status).
+
+**POST** — Adds multiple assets to a specified kit. Existing assets already in the kit are not removed.
+
+**Required permission:** `asset:update`
+
+### GET — list eligible kits
+
+**Example request**
+
+```bash
+GET /api/assets.bulk-add-to-kit
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "kits": [
+      { "id": "clfkit123", "name": "Filming Kit A" },
+      { "id": "clfkit456", "name": "Photography Kit B" }
+    ]
+  },
+  "error": null
+}
+```
+
+### POST — add assets to a kit
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to add to the kit.
+</ParamField>
+
+<ParamField body="kit" type="string" required>
+  ID of the kit to add the assets to.
+</ParamField>
+
+```bash
+POST /api/assets.bulk-add-to-kit
+
+assetIds[]=clfabc123
+assetIds[]=clfabc456
+kit=clfkit123
+```
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+<Note>
+  Assets are added using an **additive** operation — existing kit contents are preserved. To remove assets from kits, use the `POST /api/assets.bulk-remove-from-kits` endpoint.
+</Note>
+
+---
+
+## POST /api/assets.bulk-remove-from-kits
+
+Removes multiple assets from whichever kits they currently belong to. Each asset is detached from its kit; the kits themselves are not affected.
+
+**Required permission:** `asset:update`
+
+<ParamField body="assetIds" type="string[]" required>
+  Array of asset IDs to remove from their kits.
+</ParamField>
+
+**Example request**
+
+```bash
+POST /api/assets.bulk-remove-from-kits
+
+assetIds[]=clfabc123
+assetIds[]=clfabc456
+```
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```

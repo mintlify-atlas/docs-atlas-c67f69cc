@@ -1,0 +1,227 @@
+---
+title: "Bookings API Endpoints — Shelf.nu REST API Reference"
+description: "API reference for Shelf.nu booking endpoints: list bookings in draft or reserved status, bulk archive, cancel or delete, and generate booking PDF data."
+---
+
+The bookings API provides endpoints for retrieving booking lists and performing bulk lifecycle operations. All endpoints require an authenticated session with the appropriate booking permissions.
+
+## GET /api/bookings.get-all
+
+Returns all bookings in the current organization that are in `DRAFT` or `RESERVED` status. Used by the "Add to booking" dialog to let users select an existing booking.
+
+**Required permission:** `booking:read`
+
+<ParamField query="search" type="string">
+  Filter bookings by name. Case-insensitive substring match.
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number. The endpoint internally uses `takeAll: true` so all matching bookings are returned, but the parameter is accepted for API consistency.
+</ParamField>
+
+<Note>
+  Users with `SELF_SERVICE` or `BASE` roles only see bookings where they are the custodian. Admins and Owners see all bookings.
+</Note>
+
+**Example request**
+
+```bash
+GET /api/bookings.get-all?search=conference
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "bookings": [
+      {
+        "id": "clfbooking123",
+        "name": "Conference Room A — Q2",
+        "status": "RESERVED",
+        "from": "2024-06-01T09:00:00.000Z",
+        "to": "2024-06-05T18:00:00.000Z"
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+<ResponseField name="data.bookings" type="object[]">
+  Array of bookings in `DRAFT` or `RESERVED` status scoped to the caller's organization.
+
+  <Expandable title="booking properties">
+    <ResponseField name="id" type="string">
+      Booking ID (cuid).
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Booking display name.
+    </ResponseField>
+    <ResponseField name="status" type="string">
+      Booking status. One of `DRAFT` or `RESERVED`.
+    </ResponseField>
+    <ResponseField name="from" type="string | null">
+      ISO 8601 checkout date/time.
+    </ResponseField>
+    <ResponseField name="to" type="string | null">
+      ISO 8601 return date/time.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## POST /api/bookings.bulk-actions
+
+Performs a bulk lifecycle operation across multiple bookings. The specific operation is controlled by the `intent` form field.
+
+**Required permission:** Varies by intent — `booking:delete` for `bulk-delete`, `booking:update` for `bulk-archive` and `bulk-cancel`.
+
+<ParamField body="intent" type="string" required>
+  The bulk operation to perform. One of:
+
+  - `bulk-delete` — Permanently delete the selected bookings.
+  - `bulk-archive` — Move the selected bookings to archived status.
+  - `bulk-cancel` — Cancel the selected bookings.
+</ParamField>
+
+<ParamField body="bookingIds" type="string[]" required>
+  Array of booking IDs to operate on.
+</ParamField>
+
+<ParamField body="currentSearchParams" type="string">
+  Serialized search parameters. Required when using select-all across filtered results.
+</ParamField>
+
+<Tabs>
+  <Tab title="bulk-delete">
+    Permanently removes the selected bookings. This action cannot be undone.
+
+    <Warning>
+      Deleted bookings cannot be recovered. Consider using `bulk-archive` instead to retain historical records.
+    </Warning>
+
+    ```bash
+    POST /api/bookings.bulk-actions
+
+    intent=bulk-delete
+    bookingIds[]=clfbooking123
+    bookingIds[]=clfbooking456
+    ```
+  </Tab>
+  <Tab title="bulk-archive">
+    Moves bookings to archived status. Archived bookings are removed from active views but remain in the database.
+
+    ```bash
+    POST /api/bookings.bulk-actions
+
+    intent=bulk-archive
+    bookingIds[]=clfbooking123
+    bookingIds[]=clfbooking456
+    ```
+  </Tab>
+  <Tab title="bulk-cancel">
+    Cancels active bookings. Assets in cancelled bookings are returned to available status.
+
+    ```bash
+    POST /api/bookings.bulk-actions
+
+    intent=bulk-cancel
+    bookingIds[]=clfbooking123
+    bookingIds[]=clfbooking456
+    ```
+  </Tab>
+</Tabs>
+
+**Example response**
+
+```json
+{
+  "data": { "success": true },
+  "error": null
+}
+```
+
+---
+
+## GET /api/bookings/:bookingId/generate-pdf
+
+Returns all data needed to render a booking PDF report, including the booking details, asset list, dates, and formatted timestamps.
+
+**Required permission:** `booking:read`
+
+<ParamField path="bookingId" type="string" required>
+  The ID of the booking to generate a PDF for.
+</ParamField>
+
+<ParamField query="orderBy" type="string" default="status">
+  Field to sort assets by within the PDF. Accepts any valid asset sort field. Defaults to `"status"` (not `"createdAt"`, which is the global default for other list views).
+</ParamField>
+
+<ParamField query="orderDirection" type="string" default="asc">
+  Sort direction. One of `"asc"` or `"desc"`.
+</ParamField>
+
+**Example request**
+
+```bash
+GET /api/bookings/clfbooking123/generate-pdf?orderBy=status&orderDirection=asc
+```
+
+**Example response**
+
+```json
+{
+  "data": {
+    "pdfMeta": {
+      "booking": {
+        "id": "clfbooking123",
+        "name": "Conference Room A — Q2",
+        "status": "ONGOING",
+        "from": "2024-06-01T09:00:00.000Z",
+        "to": "2024-06-05T18:00:00.000Z"
+      },
+      "assets": [
+        {
+          "id": "clfabc123",
+          "title": "MacBook Pro 14\"",
+          "status": "CHECKED_OUT"
+        }
+      ],
+      "from": "6/1/24, 9:00 AM",
+      "to": "6/5/24, 6:00 PM"
+    }
+  },
+  "error": null
+}
+```
+
+<ResponseField name="data.pdfMeta" type="object">
+  All data required to render the booking PDF.
+
+  <Expandable title="pdfMeta properties">
+    <ResponseField name="booking" type="object">
+      Full booking record including name, status, dates, and notes.
+    </ResponseField>
+    <ResponseField name="assets" type="object[]">
+      Assets in the booking, sorted by the requested `orderBy` field.
+    </ResponseField>
+    <ResponseField name="from" type="string | undefined">
+      Locale-formatted checkout date/time string based on the client's timezone hint.
+    </ResponseField>
+    <ResponseField name="to" type="string | undefined">
+      Locale-formatted return date/time string.
+    </ResponseField>
+    <ResponseField name="originalFrom" type="string | undefined">
+      Formatted original checkout date if the booking was rescheduled.
+    </ResponseField>
+    <ResponseField name="originalTo" type="string | undefined">
+      Formatted original return date if the booking was rescheduled.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The date formatting respects the `Hint-Timezone` and `Hint-Date-Format` headers set by the client. These are sent automatically by the Shelf.nu web app based on the browser's locale.
+</Note>

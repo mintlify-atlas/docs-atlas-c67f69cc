@@ -1,0 +1,347 @@
+---
+title: "Single sign-on (SSO) setup and configuration for Shelf.nu"
+description: "Enable SAML 2.0 SSO for your Shelf organization: setup steps, user limitations, disabling access, and guides for Google Workspace and Microsoft Entra."
+---
+
+Shelf supports SAML 2.0 single sign-on (SSO), allowing company administrators to enforce the use of an identity provider (IdP) when team members log into Shelf. SSO simplifies onboarding and offboarding — employees use a single set of credentials across all their tools, and access can be revoked instantly from the IdP without touching Shelf directly. SSO is available to Team and Enterprise plan customers; contact Sales to have it enabled for your organization.
+
+<Warning>
+  Before completing SSO setup, ensure that at least one non-SSO user remains as
+  the **owner** of every workspace. This account is the administrative fallback
+  for SSO configuration changes. Your team members will use SSO for daily work
+  and should never need to access this fallback account during normal
+  operations.
+</Warning>
+
+## How SSO works in Shelf
+
+Shelf's SSO implementation is built on top of Supabase's enterprise SAML support. When a user logs in with SSO, Shelf redirects them to your identity provider, which authenticates them and returns a SAML assertion. Supabase validates the assertion and creates or updates the Shelf user session. Group attributes returned by your IdP are mapped to Shelf workspace roles, so you can control access entirely from your identity provider.
+
+## Enabling SSO for your organization
+
+<Steps>
+  <Step title="Choose your identity provider">
+    Shelf supports any IdP that implements the SAML 2.0 protocol. Step-by-step
+    guides are available below for [Google Workspace](#google-workspace) and
+    [Microsoft Entra](#microsoft-entra). For Okta or any other SAML 2.0 provider,
+    contact [hello@shelf.nu](mailto:hello@shelf.nu).
+  </Step>
+  <Step title="Configure the SAML application in your IdP">
+    Follow the provider-specific guide below to create a SAML application in
+    your identity provider and configure the service provider details (ACS URL,
+    Entity ID) that point to your Supabase project.
+  </Step>
+  <Step title="Download or copy the IdP metadata">
+    Retrieve the metadata file or federation metadata URL from your IdP.
+    This contains the public certificate and endpoint information Shelf needs
+    to verify SAML assertions.
+  </Step>
+  <Step title="Send metadata to Shelf">
+    Email the metadata file (or URL) along with your user domain to your Shelf
+    support contact or to [hello@shelf.nu](mailto:hello@shelf.nu). Shelf's
+    team will register the IdP in Supabase. This typically takes one business
+    day.
+  </Step>
+  <Step title="Create groups and assign users in your IdP">
+    For each Shelf workspace, create three groups in your IdP: one for Admins,
+    one for Self Service users, and one for Base users. Assign your team members
+    to the appropriate groups.
+  </Step>
+  <Step title="Map IdP groups to Shelf workspace roles">
+    In Shelf's workspace settings, enter the group names (Google Workspace) or
+    group Object IDs (Microsoft Entra) for the Admin, Self Service, and Base
+    roles. Fields are case-sensitive.
+  </Step>
+  <Step title="Test SSO login">
+    Ask a team member to sign in using the **Log in with SSO** option on the
+    Shelf login page, entering their email domain. If sign-in fails, contact
+    your Shelf support contact before making further changes.
+  </Step>
+</Steps>
+
+## SSO user limitations
+
+Accounts that log in via SSO have specific restrictions compared to standard Shelf accounts.
+
+- **No personal workspace.** SSO users are not assigned a personal workspace on signup. They can only access workspaces they are mapped to through their IdP groups.
+- **No password management.** SSO users cannot set, update, or reset a Shelf password. All authentication is handled by the identity provider.
+- **No self-service subscription.** SSO users cannot purchase their own Shelf subscription.
+- **Email is locked to SSO.** Once an email address is associated with an SSO login, it cannot be used to create a standard Shelf account. If a user tries to sign in via email/password with an SSO-linked address, they will be refused access.
+- **Existing accounts block SSO.** If a standard Shelf account already exists for an email address, that user cannot log in via SSO until the conflict is resolved. Contact [hello@shelf.nu](mailto:hello@shelf.nu) to resolve this.
+- **Workspace access is group-controlled.** An SSO user only sees and is added to workspaces mapped to their IdP groups. Adding them to a Shelf workspace manually does not bypass this requirement.
+
+<Note>
+  Workspace invites are not restricted to SSO users. You can invite both
+  standard and SSO users to the same workspace.
+</Note>
+
+## Disabling SSO access for a user
+
+To remove a user's access to Shelf via SSO, remove or disable their account in your identity provider. They will immediately be unable to log in. You can then optionally remove them from any Shelf workspaces. All custodies and bookings assigned to them will be transferred to an unregistered team member.
+
+## Provider guides
+
+<Tabs>
+  <Tab title="Google Workspace">
+
+### Google Workspace
+
+<Steps>
+  <Step title="Open the web and mobile apps console">
+    In the Google Workspace Admin console, navigate to **Apps → Web and mobile apps**.
+  </Step>
+  <Step title="Add a custom SAML app">
+    Click **Add app** in the toolbar and choose **Add custom SAML app**.
+  </Step>
+  <Step title="Fill out app details">
+    Enter a display name and optional description for the app. These values are
+    only visible inside Google Workspace Admin.
+  </Step>
+  <Step title="Download IdP metadata">
+    Click **Download metadata** and save the file. Send this file to your Shelf
+    support contact at [hello@shelf.nu](mailto:hello@shelf.nu).
+
+    <Warning>
+      Check that the certificate shown on screen has at least one year before it
+      expires. Calendar the expiry date so you can renew it before it lapses and
+      disrupts SSO for your users.
+    </Warning>
+  </Step>
+  <Step title="Add service provider details">
+    On the next screen, enter the following values:
+
+    | Field | Value |
+    |-------|-------|
+    | ACS URL | `https://nmmqcuiasekdacmhwsxk.supabase.co/auth/v1/sso/saml/acs` |
+    | Entity ID | `https://nmmqcuiasekdacmhwsxk.supabase.co/auth/v1/sso/saml/metadata` |
+    | Name ID format | PERSISTENT |
+    | Name ID | Basic Information → Primary email |
+  </Step>
+  <Step title="Configure attribute mapping">
+    Add the required attribute mappings so Shelf can read user and group
+    information from Google Workspace. All mappings are required.
+
+    Refer to the screenshot in the source documentation or contact
+    [hello@shelf.nu](mailto:hello@shelf.nu) for the exact mapping configuration.
+
+    <Note>
+      You will revisit this step after creating groups to add the group
+      membership attribute.
+    </Note>
+  </Step>
+  <Step title="Wait for Shelf confirmation">
+    Send the metadata file you downloaded to your Shelf support contact. Shelf
+    will register the IdP in Supabase — this takes approximately one business
+    day. Do not test SSO logins until you have received confirmation.
+  </Step>
+  <Step title="Create groups and assign users">
+    In Google Workspace Admin, go to **Directory → Groups → Create group** and
+    create three groups per Shelf workspace:
+
+    - An Admin group
+    - A Self Service group
+    - A Base user group
+
+    <Tip>
+      Use lowercase group names without spaces. Google Workspace returns group
+      names (not IDs) in SAML assertions, and Shelf's group matching is
+      case-sensitive. Lowercase names reduce the chance of a mismatch.
+    </Tip>
+
+    Assign team members to their groups. A member should belong to only one
+    group per workspace — if they appear in both Admin and Self Service groups
+    for the same workspace, the Admin role takes precedence.
+  </Step>
+  <Step title="Allow groups to access the Shelf app">
+    In the app's **User access** settings, configure which Google Workspace
+    accounts can access Shelf. Only users who belong to an enabled group will
+    be able to log in. Allow up to 15 minutes for changes to propagate across
+    Google's systems.
+  </Step>
+  <Step title="Map groups to app attributes">
+    Return to the attribute mapping step in the SAML app configuration and add
+    group membership as a SAML attribute. Set the **App attribute** name to
+    `groups` and include all groups that should have access to Shelf.
+  </Step>
+  <Step title="Map Google Workspace groups inside Shelf">
+    In Shelf, open **Workspace settings** and enter the exact group names for
+    the Admin, Base, and Self Service roles. Repeat for each workspace. Field
+    values are case-sensitive and must match the group names in Google Workspace
+    exactly.
+  </Step>
+  <Step title="Test SSO login">
+    Ask a team member to sign out of their Google account, sign back in, then
+    use the **Log in with SSO** option on the Shelf login page and enter their
+    email domain. If sign-in fails, contact your Shelf support contact before
+    making changes.
+  </Step>
+</Steps>
+
+  </Tab>
+  <Tab title="Microsoft Entra">
+
+### Microsoft Entra
+
+<Steps>
+  <Step title="Add an enterprise application">
+    Open the [Microsoft Entra Overview](https://entra.microsoft.com) dashboard.
+    Click **Add → Enterprise application**.
+  </Step>
+  <Step title="Create your own application">
+    On the application gallery page, click **Create your own application**.
+  </Step>
+  <Step title="Fill out app details">
+    Enter a display name (we recommend `Shelf`). Select the third option:
+    **Integrate any other application you don't find in the gallery
+    (Non-gallery)**. Click **Create**.
+  </Step>
+  <Step title="Choose single sign-on">
+    On the application overview, click **Set up single sign-on**.
+  </Step>
+  <Step title="Select the SAML method">
+    Choose **SAML** as the single sign-on method. Shelf only supports SAML 2.0.
+  </Step>
+  <Step title="Configure Basic SAML settings">
+    In the **Basic SAML Configuration** section, add the following values and
+    save:
+
+    | Field | Value |
+    |-------|-------|
+    | ACS URL (Reply URL) | `https://nmmqcuiasekdacmhwsxk.supabase.co/auth/v1/sso/saml/acs` |
+    | Entity ID (Identifier) | `https://nmmqcuiasekdacmhwsxk.supabase.co/auth/v1/sso/saml/metadata` |
+    | Relay State | `https://app.shelf.nu/oauthcallback` |
+  </Step>
+  <Step title="Configure attribute mapping">
+    In the **Attributes & Claims** section, configure claims so Shelf can read
+    user profile data from Entra.
+
+    **7.1 — Remove extra claims.** Delete all additional claims except `mail`.
+
+    **7.2 — Add required and optional claims.** Click **+ Add new claim** for
+    each row in the table below:
+
+    | Claim name | Source attribute | Required |
+    |---|---|---|
+    | `firstname` | `user.givenname` | Yes |
+    | `lastname` | `user.surname` | Yes |
+    | `mobilephone` | `user.mobilephone` | No |
+    | `streetaddress` | `user.streetaddress` | No |
+    | `city` | `user.city` | No |
+    | `stateprovince` | `user.state` | No |
+    | `postalcode` | `user.postalcode` | No |
+    | `country` | `user.country` | No |
+
+    **7.3 — Add group claims.** Click **+ Add a group claim**. Configure it to
+    emit group Object IDs in the SAML assertion. This is what Shelf uses to map
+    users to workspace roles.
+
+    <Note>
+      You will assign users to groups and add groups to the application in a
+      later step. This step only ensures the group attribute is included in the
+      SAML assertion.
+    </Note>
+  </Step>
+  <Step title="Obtain the metadata URL and send to Shelf">
+    In the **SAML Certificates** section (section 3), copy the **App Federation
+    Metadata URL**. Send the following to your Shelf support contact or to
+    [hello@shelf.nu](mailto:hello@shelf.nu):
+
+    - The **domain** your users will use to log into Shelf (e.g., `contoso.com`)
+    - The **App Federation Metadata URL**
+
+    Do not test SSO login until you receive confirmation from Shelf.
+  </Step>
+  <Step title="Wait for Shelf confirmation">
+    Shelf will register your IdP in Supabase using the metadata URL you
+    provided. This takes approximately one business day.
+  </Step>
+  <Step title="Create groups and assign users">
+    Navigate to **Groups** in Microsoft Entra and click **New group** to create
+    three security groups per Shelf workspace:
+
+    - An Admin group
+    - A Self Service group
+    - A Base user group
+
+    Add your team members to the appropriate groups. A user should not belong
+    to more than one group per Shelf application, as this may cause unexpected
+    role assignment.
+  </Step>
+  <Step title="Give groups access to the Shelf application">
+    Return to your Shelf enterprise application and go to **Users and groups**.
+    Click **Add user/group** and add the three groups you created. Confirm the
+    assignment.
+  </Step>
+  <Step title="Map Entra groups inside Shelf">
+    <Warning>
+      Complete this step only after receiving confirmation from Shelf that your
+      SSO setup is active. The workspace owner in Shelf cannot be an SSO user —
+      the workspace must be owned by a standard account. Contact your account
+      manager if you need help with this.
+    </Warning>
+
+    In Shelf, open **Workspace settings** and enter the **Object ID** of each
+    group for the Admin, Base, and Self Service role fields. To find an Object
+    ID, click the group in Entra and copy the value from the **Object ID**
+    field. Repeat for each workspace.
+  </Step>
+  <Step title="Test SSO login">
+    Ask a team member to use the **Log in with SSO** option on the Shelf login
+    page and enter their email domain. If sign-in fails, contact your Shelf
+    support contact.
+  </Step>
+</Steps>
+
+  </Tab>
+</Tabs>
+
+## Self-hosting: developer SSO setup
+
+If you are self-hosting Shelf and want to configure SSO on your own infrastructure, Supabase handles the SAML provider registration. Follow Supabase's enterprise SSO documentation:
+
+[Supabase SAML SSO guide](https://supabase.com/docs/guides/auth/enterprise-sso/auth-sso-saml)
+
+### Attribute mapping
+
+Shelf requires specific SAML attribute names to map user profile data correctly. The repository ships an attribute mapping file at `sso/attributes.json` in the project root. Upload or reference this file when configuring attribute mappings in Supabase, as described in the [Supabase attribute mapping documentation](https://supabase.com/docs/guides/auth/enterprise-sso/auth-sso-saml#understanding-attribute-mappings).
+
+### Disabling SSO in shelf.config.ts
+
+To disable the SSO login option at the application level — for example, while you are setting up providers or for a development environment — set the following in your `.env`:
+
+```bash
+DISABLE_SSO=true
+```
+
+See the [app configuration reference](/configuration/app-configuration) for details on this and other feature flags.
+
+## Frequently asked questions
+
+<AccordionGroup>
+  <Accordion title="Can I invite non-SSO users to an SSO-enabled workspace?">
+    Yes. Workspace invites are not restricted to SSO users. You can invite
+    standard email/password accounts to any workspace alongside SSO users.
+  </Accordion>
+  <Accordion title="What happens if an SSO user's account is disabled in the IdP?">
+    Removing or disabling a user in your identity provider immediately prevents
+    them from logging into Shelf. You can then optionally remove them from
+    specific workspaces inside Shelf. Their custodies and bookings will be
+    reassigned to an unregistered team member.
+  </Accordion>
+  <Accordion title="A user already has a standard Shelf account with the same email as their SSO identity. What do I do?">
+    A standard Shelf account blocks SSO login for the same email address. Contact
+    [hello@shelf.nu](mailto:hello@shelf.nu) to have the conflict resolved before
+    enabling SSO for that user.
+  </Accordion>
+  <Accordion title="Does Shelf support Okta?">
+    Shelf supports any identity provider that implements SAML 2.0. Okta is
+    compatible but does not yet have a step-by-step guide. Contact
+    [hello@shelf.nu](mailto:hello@shelf.nu) and the support team will walk you
+    through the configuration.
+  </Accordion>
+  <Accordion title="What roles can be mapped from IdP groups?">
+    Shelf supports three workspace roles via group mapping: **Admin**,
+    **Self Service**, and **Base user**. Each workspace requires a separate
+    set of three groups in your IdP.
+  </Accordion>
+</AccordionGroup>

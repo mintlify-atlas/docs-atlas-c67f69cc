@@ -1,0 +1,88 @@
+---
+title: "Authentication in Shelf.nu — Login Flow and Sessions"
+description: "How Shelf.nu authenticates users via Supabase Auth, OTP email, and SSO. Covers the session cookie lifecycle and what happens when authentication fails."
+---
+
+Shelf.nu uses [Supabase Auth](https://supabase.com/docs/guides/auth) for authentication. All user identity, session management, and token refresh is handled by Supabase. The webapp reads the authenticated session from a secure, server-side cookie on every request.
+
+## How authentication works
+
+When a user logs in, Shelf.nu creates a Supabase Auth session and stores it in an encrypted cookie. Every subsequent page load or API request carries that cookie, which the server validates against Supabase before processing the request.
+
+There is no API key or bearer token mechanism for browser clients — all requests are authenticated via the session cookie.
+
+<Info>
+  The Shelf.nu API is intended for use by authenticated browser sessions. There is no public token-based authentication for external API consumers.
+</Info>
+
+## Logging in with OTP email
+
+Shelf.nu uses a **passwordless OTP** (one-time passcode) flow. Users never create or manage a password.
+
+<Steps>
+  <Step title="Enter your email">
+    Navigate to the login page and enter your email address. Shelf.nu sends a one-time code to that address.
+  </Step>
+  <Step title="Enter the OTP code">
+    Check your email and enter the six-digit code in the confirmation step. The code expires after a short window.
+  </Step>
+  <Step title="Session created">
+    On successful verification, Supabase Auth creates a session and the webapp sets the session cookie. You are redirected to your workspace.
+  </Step>
+</Steps>
+
+The OTP flow is handled by routes under `apps/webapp/app/routes/_auth+/`. The confirmation callback is processed at `_auth+/otp.tsx`.
+
+## Single sign-on (SSO)
+
+Organizations on a plan that includes SSO can authenticate through their identity provider (IdP) instead of email OTP. The SSO flow uses SAML 2.0 via Supabase Auth's enterprise SSO support.
+
+<Steps>
+  <Step title="Navigate to SSO login">
+    On the login page, enter your organization's SSO domain or use the SSO link provided by your administrator.
+  </Step>
+  <Step title="Authenticate with your IdP">
+    You are redirected to your organization's identity provider (for example, Okta, Azure AD, or Google Workspace) to complete authentication.
+  </Step>
+  <Step title="Redirected back to Shelf">
+    After successful authentication, your IdP redirects back to the Shelf.nu callback URL. The session cookie is set and you land in your workspace.
+  </Step>
+</Steps>
+
+<Note>
+  SSO must be configured by an organization Owner or Admin in workspace settings before team members can use it. The `sso` flag on the `User` model is set to `true` for all users who signed up or signed in via SSO.
+</Note>
+
+## Session lifecycle
+
+| Event | What happens |
+| --- | --- |
+| Successful login | Session cookie created; user redirected to workspace |
+| Every request | Session cookie validated server-side via Supabase |
+| Token expiry | Supabase Auth automatically refreshes the access token using the refresh token stored in the cookie |
+| Logout | Session invalidated on Supabase; cookie cleared |
+| Invalid session | User redirected to the login page (browser) or receives a `401` (API) |
+
+## What happens on auth failure
+
+If a request reaches the server without a valid session:
+
+- **Browser navigation** — The user is redirected to `/login` with the original URL preserved as a `redirectTo` query parameter, so they land back on the intended page after logging in.
+- **API/fetcher requests** — The route returns a `401 Unauthorized` JSON response in the standard error envelope:
+
+```json
+{
+  "data": null,
+  "error": {
+    "message": "You need to be logged in to perform this action.",
+    "status": 401,
+    "label": "Auth"
+  }
+}
+```
+
+## Multi-workspace support
+
+A single user account can belong to multiple organizations (workspaces). After login, the user is placed in their last-selected organization. They can switch organizations from the workspace selector in the sidebar, which calls the `POST /api/user.change-current-organization` endpoint to update the `lastSelectedOrganizationId` on the `User` record.
+
+Each organization has its own isolated set of assets, bookings, locations, and team members. Row-level security on Supabase PostgreSQL enforces this isolation at the database layer.

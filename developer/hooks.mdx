@@ -1,0 +1,332 @@
+---
+title: "Custom React Hooks Reference — Shelf.nu Developer Guide"
+description: "Reference for Shelf.nu utility hooks: viewport height, fetcher reset, booking status, camera devices, role helpers, user data, and table overflow."
+---
+
+Shelf.nu ships a set of utility hooks that solve recurring problems — responsive viewport sizing, fetcher state management, role-based rendering, and more. All hooks live under `apps/webapp/app/hooks/` and are designed to be imported directly from that path.
+
+<Note>
+  Not all hooks are documented here. If you discover a hook that is missing, contributions are welcome — follow the same format used below.
+</Note>
+
+## useViewportHeight
+
+Provides the current viewport height in pixels, excluding the browser URL bar. This is essential for full-screen experiences on mobile devices where the URL bar appears and disappears dynamically.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `vh` | `number` | Current viewport height in pixels. |
+| `isMd` | `boolean` | `true` when viewport width is at least 768 px. |
+
+**When to use**
+
+Use this hook any time you need a CSS height that tracks the real visual viewport on mobile — for example, full-height drawers or modals that must not be clipped by the address bar.
+
+```tsx
+import { useViewportHeight } from "~/hooks/use-viewport-height";
+
+const MyComponent = () => {
+  const { vh, isMd } = useViewportHeight();
+  const height = isMd ? vh - 132 : vh - 167;
+
+  return <div style={{ height: `${height}px` }}>{/* content */}</div>;
+};
+```
+
+---
+
+## useFetcherWithReset
+
+Extends React Router's `useFetcher` hook with a `reset` function that clears the fetcher's data back to `undefined`. This is useful when you submit a form, handle the response, and then want to restore the fetcher to its initial state without triggering a navigation.
+
+**Returns**
+
+All properties from the standard React Router fetcher, plus:
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `reset` | `() => void` | Clears `data` back to `undefined`. |
+| `data` | `T \| undefined` | Typed fetcher data. |
+
+**When to use**
+
+Use this whenever you need to programmatically clear fetcher data — for example, after a successful dialog submission where you want to reset the form's error state without closing the dialog.
+
+```typescript
+import useFetcherWithReset from "~/hooks/use-fetcher-with-reset";
+
+const MyComponent = () => {
+  const fetcher = useFetcherWithReset<MyDataType>();
+
+  const handleReset = () => {
+    fetcher.reset();
+  };
+
+  return (
+    <div>
+      {/* render fetcher.data */}
+      <button onClick={handleReset}>Reset</button>
+    </div>
+  );
+};
+```
+
+---
+
+## useBookingStatus
+
+Derives a comprehensive set of boolean status flags from a booking object. Rather than scattering `booking.status === "RESERVED"` comparisons throughout the UI, you call this hook once and get named booleans.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `hasAssets` | `boolean` | Booking has at least one asset. |
+| `hasUnavailableAssets` | `boolean` | At least one asset is currently unavailable. |
+| `isDraft` | `boolean` | Booking is in `DRAFT` state. |
+| `isReserved` | `boolean` | Booking is in `RESERVED` state. |
+| `isOngoing` | `boolean` | Booking is currently active (`ONGOING`). |
+| `isCompleted` | `boolean` | Booking has been completed. |
+| `isArchived` | `boolean` | Booking has been archived. |
+| `isOverdue` | `boolean` | Booking is past its return date. |
+| `isCancelled` | `boolean` | Booking has been cancelled. |
+| `hasCheckedOutAssets` | `boolean` | At least one asset has been checked out. |
+| `hasAlreadyBookedAssets` | `boolean` | At least one asset is booked in another booking. |
+| `hasAssetsInCustody` | `boolean` | At least one asset is currently in custody. |
+
+**When to use**
+
+Use anywhere you conditionally render booking-related UI — action buttons, status badges, confirmation dialogs.
+
+```typescript
+import useBookingStatus from "~/hooks/use-booking-status";
+
+const BookingActions = ({ booking }) => {
+  const { isReserved, isOngoing, hasUnavailableAssets } =
+    useBookingStatus(booking);
+
+  return (
+    <div>
+      {isReserved && <button>Check out</button>}
+      {isOngoing && <button>Check in</button>}
+      {hasUnavailableAssets && (
+        <p>Some assets are unavailable for this booking.</p>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## useVideoDevices
+
+Manages video device access and permissions for camera-dependent features such as the built-in QR/barcode scanner.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `devices` | `MediaDeviceInfo[] \| null` | Available video input devices, or `null` while loading or on error. |
+| `error` | `Error \| null` | Set when device enumeration or permission fails. |
+| `loading` | `boolean` | `true` while the device list is being fetched. |
+| `requestPermissions` | `() => void` | Triggers the browser's camera permission prompt. |
+| `DevicesPermissionComponent` | `React.FC` | Pre-built component that renders the appropriate permission/error UI. |
+
+**When to use**
+
+Use in any component that needs camera access — QR scanners, barcode readers, or custom camera capture flows. The `DevicesPermissionComponent` handles all the edge cases (denied permissions, no camera found) so you don't need to build that UI yourself.
+
+```typescript
+const QRScanner = () => {
+  const { devices, DevicesPermissionComponent } = useVideoDevices();
+
+  return (
+    <div>
+      {devices ? (
+        <Scanner videoMediaDevices={devices} />
+      ) : (
+        <DevicesPermissionComponent />
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## useDisabled
+
+Returns `true` when a form submission is in progress, so you can disable submit buttons and prevent double-submissions. By default it watches the React Router navigation state; pass a fetcher to watch that fetcher's state instead.
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `fetcher` | `Fetcher` | No | A fetcher returned by `useFetcher()`. If omitted, the global navigation state is used. |
+
+**Returns**
+
+`boolean` — `true` when the form is processing, `false` otherwise.
+
+**When to use**
+
+Apply to any submit button to prevent duplicate submissions during navigation or fetcher loading states.
+
+<Tabs>
+  <Tab title="With navigation">
+    ```typescript
+    import { useDisabled } from "~/hooks/use-disabled";
+
+    const MyForm = () => {
+      const isDisabled = useDisabled();
+
+      return (
+        <form method="post">
+          <button disabled={isDisabled}>Submit</button>
+        </form>
+      );
+    };
+    ```
+  </Tab>
+  <Tab title="With fetcher">
+    ```typescript
+    import { useFetcher } from "react-router";
+    import { useDisabled } from "~/hooks/use-disabled";
+
+    const MyComponent = () => {
+      const fetcher = useFetcher();
+      const isDisabled = useDisabled(fetcher);
+
+      return (
+        <fetcher.Form method="post">
+          <button disabled={isDisabled}>Submit</button>
+        </fetcher.Form>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## useUserRoleHelper
+
+Reads the current user's organization role and exposes convenience booleans for the most common role checks. Avoids scattering raw role enum comparisons throughout the UI.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `roles` | `OrganizationRoles` | The user's current role enum value. |
+| `isAdministrator` | `boolean` | User has the `ADMIN` role. |
+| `isOwner` | `boolean` | User has the `OWNER` role. |
+| `isAdministratorOrOwner` | `boolean` | User has `ADMIN` or `OWNER`. |
+| `isSelfService` | `boolean` | User has the `SELF_SERVICE` role. |
+| `isBase` | `boolean` | User has the `BASE` role. |
+| `isBaseOrSelfService` | `boolean` | User has `BASE` or `SELF_SERVICE`. |
+
+**When to use**
+
+Use whenever you need to conditionally render UI based on the user's role — for example, showing "New Asset" only to admins and owners.
+
+```typescript
+import { useUserRoleHelper } from "~/hooks/user-user-role-helper";
+
+export default function AssetIndexPage() {
+  const { isAdministratorOrOwner } = useUserRoleHelper();
+
+  return (
+    <div>
+      <header>
+        {isAdministratorOrOwner && <button>New Asset</button>}
+      </header>
+    </div>
+  );
+}
+```
+
+**Dependencies:** Uses `useRouteLoaderData` from `react-router` to read role data from the `_layout` route loader.
+
+---
+
+## useUserData
+
+Reads the current user's data from the `_layout` route loader. Avoids prop-drilling the user object down through component trees.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `user` | `User \| undefined` | The user object from the `_layout` route loader, including `email` and other profile fields. |
+
+**When to use**
+
+Use in any component nested under the `_layout` route that needs access to the logged-in user's data — forms, headers, avatar displays.
+
+```typescript
+import { useUserData } from "~/hooks/use-user-data";
+
+export const RequestDeleteUser = () => {
+  const user = useUserData();
+
+  return (
+    <form method="post">
+      <input type="hidden" name="email" value={user?.email} />
+      <button type="submit">Delete my account</button>
+    </form>
+  );
+};
+```
+
+**Dependencies:** Uses `useRouteLoaderData` from `react-router` with the `_layout` route ID.
+
+---
+
+## useTableIsOverflowing
+
+Detects whether a table container is horizontally overflowing its bounds. When it is, a scroll-fade gradient can be applied to signal to users that more content is available to the right.
+
+**Returns**
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `containerRef` | `React.RefObject<HTMLDivElement>` | Attach to the table's scroll container element. |
+| `isOverflowing` | `boolean` | `true` when the container is scrollable and has not reached the right edge. |
+
+**When to use**
+
+Use in table wrapper components to add a right-side scroll-fade effect. The `isOverflowing` boolean toggles a CSS class that renders the gradient.
+
+```typescript
+import { useTableIsOverflowing } from "~/hooks/use-table-overflow";
+import { tw } from "~/utils/tw";
+
+export function Table({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const { containerRef, isOverflowing } = useTableIsOverflowing();
+
+  return (
+    <div className={`relative ${isOverflowing ? "overflowing" : ""}`}>
+      <div className="fixed-gradient" />
+      <div
+        ref={containerRef}
+        className="scrollbar-top scrollbar-always-visible"
+      >
+        <table className={tw("w-full table-auto border-collapse", className)}>
+          {children}
+        </table>
+      </div>
+    </div>
+  );
+}
+```
+
+When `isOverflowing` is `true`, the `overflowing` class is added to the outer `div`. A CSS rule tied to that class renders a right-side gradient that fades away as the user scrolls to the end of the table.

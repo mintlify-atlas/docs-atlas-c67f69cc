@@ -1,0 +1,209 @@
+---
+title: "App configuration: shelf.config.ts settings guide"
+description: "Configure Shelf.nu behavior using shelf.config.ts. Control onboarding emails, premium features, signups, SSO, logos, favicons, and email branding."
+---
+
+The `shelf.config.ts` file is the central place to control optional functionality in your Shelf instance. It lives at `apps/webapp/app/config/shelf.config.ts` and exports a single `config` object that the application reads at startup. Most options map directly to environment variables, which lets you use a single codebase across different environments while keeping per-environment settings out of source control.
+
+<Note>
+  Changes to `shelf.config.ts` or its environment variables require a server restart to take effect.
+</Note>
+
+## The config file
+
+```typescript
+// apps/webapp/app/config/shelf.config.ts
+import {
+  COLLECT_BUSINESS_INTEL,
+  DISABLE_SIGNUP,
+  DISABLE_SSO,
+  ENABLE_PREMIUM_FEATURES,
+  FREE_TRIAL_DAYS,
+  SEND_ONBOARDING_EMAIL,
+  SHOW_HOW_DID_YOU_FIND_US,
+} from "~/utils/env";
+import { Config } from "./types";
+
+export const config: Config = {
+  sendOnboardingEmail: SEND_ONBOARDING_EMAIL || false,
+  enablePremiumFeatures: ENABLE_PREMIUM_FEATURES || false,
+  freeTrialDays: Number(FREE_TRIAL_DAYS || 7),
+  disableSignup: DISABLE_SIGNUP || false,
+  disableSSO: DISABLE_SSO || false,
+  collectBusinessIntel:
+    COLLECT_BUSINESS_INTEL || SHOW_HOW_DID_YOU_FIND_US || false,
+  logoPath: {
+    fullLogo: "/static/images/logo-full-color(x2).png",
+    symbol: "/static/images/shelf-symbol.png",
+  },
+  faviconPath: "/static/favicon.ico",
+  emailPrimaryColor: "#EF6820",
+};
+```
+
+You can either edit the default values in the file directly, or set the corresponding environment variables to override them per environment. Environment variables always take precedence over hardcoded values.
+
+## Configuration options
+
+### sendOnboardingEmail
+
+<ParamField body="sendOnboardingEmail" type="boolean" default="false">
+  Controls whether Shelf sends a welcome email to new users after they complete
+  the onboarding flow. The email is dispatched from the action in
+  `routes/_welcome+/onboarding.tsx` once the user's first and last name have
+  been collected.
+</ParamField>
+
+**Environment variable:** `SEND_ONBOARDING_EMAIL`
+
+```bash
+SEND_ONBOARDING_EMAIL=true
+```
+
+### enablePremiumFeatures
+
+<ParamField body="enablePremiumFeatures" type="boolean" default="false">
+  Enables Shelf's premium feature tier. When set to `false`, all users have
+  access to every feature without restrictions or subscription prompts. Set to
+  `true` if you want to gate advanced functionality behind a Stripe subscription.
+  Requires the `STRIPE_*` environment variables to be configured.
+</ParamField>
+
+**Environment variable:** `ENABLE_PREMIUM_FEATURES`
+
+```bash
+ENABLE_PREMIUM_FEATURES=true
+```
+
+### collectBusinessIntel
+
+<ParamField body="collectBusinessIntel" type="boolean" default="false">
+  When enabled, the onboarding flow collects additional business intelligence
+  fields from new users, including their role, team size, company or
+  organization name (for self-serve signups), and how they heard about Shelf.
+  Optional follow-up questions about primary use case, current solution, and
+  timeline also appear. Selecting "Personal use" as a role automatically hides
+  the team size and company name fields.
+</ParamField>
+
+**Environment variable:** `COLLECT_BUSINESS_INTEL`
+
+```bash
+COLLECT_BUSINESS_INTEL=true
+```
+
+<Info>
+  If `COLLECT_BUSINESS_INTEL` is not set, Shelf falls back to the
+  `SHOW_HOW_DID_YOU_FIND_US` variable for backwards compatibility with existing
+  configurations.
+</Info>
+
+### freeTrialDays
+
+<ParamField body="freeTrialDays" type="number" default="7">
+  Sets the length of the free trial period in days. Only relevant when
+  `enablePremiumFeatures` is `true`. Users are granted full premium access for
+  this many days before a Stripe subscription is required.
+</ParamField>
+
+**Environment variable:** `FREE_TRIAL_DAYS`
+
+```bash
+FREE_TRIAL_DAYS=14
+```
+
+### disableSignup
+
+<ParamField body="disableSignup" type="boolean" default="false">
+  Prevents new users from registering directly on your Shelf instance. Useful
+  for private or internal deployments where you want to control access
+  exclusively through invitations. Users can still be added by existing
+  administrators by sending workspace invites. Note that users created via
+  invite will not receive a personal workspace.
+</ParamField>
+
+**Environment variable:** `DISABLE_SIGNUP`
+
+```bash
+DISABLE_SIGNUP=true
+```
+
+### disableSSO
+
+<ParamField body="disableSSO" type="boolean" default="false">
+  Disables the SSO login option entirely, even if SAML providers are configured
+  in Supabase. Use this to temporarily suspend SSO access or to run an instance
+  that relies solely on email/password authentication.
+</ParamField>
+
+**Environment variable:** `DISABLE_SSO`
+
+```bash
+DISABLE_SSO=true
+```
+
+### logoPath
+
+<ParamField body="logoPath" type="object">
+  Paths to your application logos, used throughout the Shelf UI. Both sub-fields
+  are optional; if you omit this key entirely, Shelf falls back to its bundled
+  default logos.
+</ParamField>
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `logoPath.fullLogo` | `string` | `"/static/images/logo-full-color(x2).png"` | Full wordmark displayed in the sidebar and on public pages. |
+| `logoPath.symbol` | `string` | `"/static/images/shelf-symbol.png"` | Icon-only mark used in compact views and loading states. |
+
+Paths are relative to the `public` directory of the webapp. Drop your image files into `apps/webapp/public/static/images/` and reference them here.
+
+```typescript
+logoPath: {
+  fullLogo: "/static/images/my-company-logo.png",
+  symbol: "/static/images/my-company-symbol.png",
+},
+```
+
+### faviconPath
+
+<ParamField body="faviconPath" type="string" default='"/static/favicon.ico"'>
+  Path to the browser tab favicon. Place your `.ico` (or `.png`) file in the
+  `public` directory and reference it here.
+</ParamField>
+
+```typescript
+faviconPath: "/static/my-favicon.ico",
+```
+
+### emailPrimaryColor
+
+<ParamField body="emailPrimaryColor" type="string" default='"#EF6820"'>
+  Hex color code applied to buttons, links, and accent elements in all
+  transactional email templates sent by Shelf. Use your brand's primary color
+  to keep emails visually consistent with your deployment.
+</ParamField>
+
+```typescript
+emailPrimaryColor: "#1D4ED8",
+```
+
+<Tip>
+  Use a color with sufficient contrast against white backgrounds — email clients
+  do not apply your CSS variables, so the hex value is rendered literally.
+</Tip>
+
+## Environment variable reference
+
+The table below summarizes every environment variable that maps to a `shelf.config.ts` option.
+
+| Environment variable | Config key | Type | Default |
+|---|---|---|---|
+| `SEND_ONBOARDING_EMAIL` | `sendOnboardingEmail` | boolean | `false` |
+| `ENABLE_PREMIUM_FEATURES` | `enablePremiumFeatures` | boolean | `false` |
+| `COLLECT_BUSINESS_INTEL` | `collectBusinessIntel` | boolean | `false` |
+| `SHOW_HOW_DID_YOU_FIND_US` | `showHowDidYouFindUs` | boolean | `false` |
+| `FREE_TRIAL_DAYS` | `freeTrialDays` | number | `7` |
+| `DISABLE_SIGNUP` | `disableSignup` | boolean | `false` |
+| `DISABLE_SSO` | `disableSSO` | boolean | `false` |
+
+For a complete list of all environment variables supported by Shelf, see the [environment variables reference](/configuration/environment-variables).

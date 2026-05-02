@@ -1,0 +1,157 @@
+---
+title: "Application Architecture — Shelf.nu Developer Guide"
+description: "Explore the monorepo structure, route organization, business logic modules, state management, and database layer that power the Shelf.nu platform."
+---
+
+Shelf.nu is organized as a **pnpm + Turborepo monorepo** that cleanly separates application code from database concerns. Understanding this structure makes it easy to locate any layer of the system — from HTTP routes down to Prisma schema migrations.
+
+## Monorepo structure
+
+```
+shelf.nu/
+├── apps/
+│   ├── webapp/          # Main application (@shelf/webapp)
+│   │   ├── app/
+│   │   │   ├── routes/      # File-based routing (remix-flat-routes)
+│   │   │   ├── modules/     # Business logic (asset, booking, kit, …)
+│   │   │   ├── components/  # React components
+│   │   │   ├── atoms/       # Jotai client-state atoms
+│   │   │   └── utils/       # Shared utilities
+│   │   └── public/          # Static assets
+│   └── docs/            # Documentation site
+├── packages/
+│   └── database/        # @shelf/database — Prisma schema, migrations, client
+└── tooling/
+    └── typescript/      # Shared TypeScript config bases
+```
+
+All database concerns — schema, migrations, and client generation — are owned by `@shelf/database`. The webapp consumes it as a workspace dependency through `apps/webapp/app/database/db.server.ts`, which is a thin wrapper around `@shelf/database`'s `createDatabaseClient()` factory.
+
+## Tech stack
+
+| Layer      | Technology                                                                         |
+| ---------- | ---------------------------------------------------------------------------------- |
+| Framework  | [React Router](https://reactrouter.com/) 7 (React 19)                              |
+| Language   | [TypeScript](https://www.typescriptlang.org/) 5                                    |
+| Database   | [PostgreSQL](https://www.postgresql.org/) via [Supabase](https://supabase.com/)    |
+| ORM        | [Prisma](https://www.prisma.io/) 6                                                 |
+| Styling    | [Tailwind CSS](https://tailwindcss.com/) 3                                         |
+| Components | [Radix UI](https://www.radix-ui.com/) primitives                                   |
+| Auth       | [Supabase Auth](https://supabase.com/docs/guides/auth) (email OTP, SSO)            |
+| Job queue  | [pg-boss](https://github.com/timgit/pg-boss)                                       |
+| Payments   | [Stripe](https://stripe.com/)                                                      |
+| Email      | [Nodemailer](https://nodemailer.com/) (SMTP)                                       |
+| Build      | [Vite](https://vite.dev/) 7, [Turborepo](https://turbo.build/)                     |
+| Testing    | [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/)               |
+
+## Route organization
+
+Routes live under `apps/webapp/app/routes/` and follow the [remix-flat-routes](https://github.com/kiliman/remix-flat-routes) convention. The `+` suffix denotes a route group folder. Key groups:
+
+| Group | Purpose |
+| --- | --- |
+| `_layout+/` | Authenticated shell — all routes that render inside the main nav |
+| `_auth+/` | Login, logout, OTP confirmation, SSO callback |
+| `_welcome+/` | Onboarding flow for new users |
+| `api+/` | Resource routes — JSON-only endpoints used by the web app |
+| `qr+/` | Public QR scan landing pages |
+
+<Note>
+  Resource routes in `api+/` never render a view. They export only `loader` and/or `action` functions and always return JSON wrapped with `payload()` or `error()`.
+</Note>
+
+## Business logic modules
+
+Reusable service logic lives under `apps/webapp/app/modules/`, organized by domain. Each module typically contains:
+
+- `service.server.ts` — Functions called from route loaders and actions
+- `utils.server.ts` — Helper utilities, Zod schemas for server-side parsing
+- `types.ts` — Shared TypeScript types for the domain
+
+Key modules:
+
+| Module | Responsibility |
+| --- | --- |
+| `asset/` | CRUD, bulk operations, filtering, QR code generation |
+| `booking/` | Reservations, check-out / check-in lifecycle, PDF export |
+| `kit/` | Kit creation, asset grouping, custody assignment |
+| `location/` | Hierarchical location tree, bulk operations |
+| `user/` | Profile, role resolution, team membership |
+| `note/` | Audit trail notes attached to assets and bookings |
+| `tag/` | Tagging and cross-cutting asset grouping |
+| `custom-field/` | User-defined metadata fields on assets |
+
+## State management
+
+Shelf uses a two-layer state model:
+
+**Server state — Remix loaders and actions**
+
+Data fetched on the server is returned from `loader` functions and consumed via `useLoaderData`. Mutations go through `action` functions, typically submitted with React Router `<Form>` or the `useFetcher` hook. This covers the vast majority of application state.
+
+**Client state — Jotai atoms**
+
+Complex UI state that doesn't belong on the server (selected rows in a bulk-action table, open/closed drawer panels, camera preferences) is managed with [Jotai](https://jotai.org/) atoms in `apps/webapp/app/atoms/`. Atoms are co-located with the features that use them.
+
+```typescript
+// Example: atoms/assets.ts
+import { atom } from "jotai";
+
+export const selectedBulkItemsAtom = atom<string[]>([]);
+export const isSelectingAllAtom = atom<boolean>(false);
+```
+
+## Database layer
+
+**Prisma ORM** manages all schema definitions and migrations inside `packages/database/prisma/`:
+
+```
+packages/database/
+├── prisma/
+│   ├── schema.prisma   # Single source of truth for the data model
+│   └── migrations/     # Versioned SQL migration history
+└── src/
+    └── index.ts        # createDatabaseClient() factory
+```
+
+The webapp's `db.server.ts` wraps the factory with a Prisma extension that automatically **retries transient errors** (Prisma codes `P2024`, `P1001`, `P1002`, `P1008`, `P1017`) up to two times with linear backoff (500 ms, then 1 000 ms). This is transparent to all service code.
+
+**Supabase PostgreSQL** is the hosted database backend. The schema uses:
+
+- Supabase Row Level Security (RLS) for tenant isolation
+- `pg_trgm` and Postgres full-text search for asset search
+- `uuid`/`cuid()` primary keys throughout
+
+**pg-boss** runs background jobs (e.g., sending reminder emails, processing images) using a Postgres-backed queue stored in the same database.
+
+## Key commands
+
+| Command | Description |
+| --- | --- |
+| `pnpm webapp:dev` | Start the development server on port 3000 |
+| `pnpm webapp:setup` | Generate Prisma client and run migrations |
+| `pnpm webapp:validate` | Lint + typecheck + test (run before committing) |
+| `pnpm db:prepare-migration` | Create a new database migration |
+| `pnpm db:deploy-migration` | Apply pending migrations |
+| `pnpm db:reset` | Reset the database (destructive) |
+
+<Tip>
+  Run `pnpm webapp:validate` before opening a pull request. It runs Prisma generation, ESLint, Prettier, TypeScript checking, and the full Vitest suite.
+</Tip>
+
+## Further reading
+
+<Columns cols={2}>
+  <Card title="Error handling" icon="shield-exclamation" href="/developer/error-handling">
+    ShelfError, makeShelfError, and try/catch patterns used throughout the codebase.
+  </Card>
+  <Card title="Custom hooks" icon="hook" href="/developer/hooks">
+    Utility hooks for viewport height, fetcher reset, booking status, and more.
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/developer/contributing">
+    How to fork, branch, validate, and submit a pull request.
+  </Card>
+  <Card title="API overview" icon="bolt" href="/api/overview">
+    Base URL patterns, response envelope, and error format for all resource routes.
+  </Card>
+</Columns>

@@ -1,0 +1,159 @@
+---
+title: "Contributing to Shelf.nu — Local Setup and PR Guide"
+description: "How to fork, set up locally, validate your changes with pnpm, write conventional commits, and open a pull request for the Shelf.nu project."
+---
+
+Shelf.nu welcomes contributions of all kinds — code, documentation, bug reports, and design feedback. This guide covers everything you need to submit a pull request that passes review on the first round.
+
+**Prerequisites:** [Node.js](https://nodejs.org/) >= 22.20.0 and [pnpm](https://pnpm.io/) >= 9.15.4 installed on your computer.
+
+## Finding something to work on
+
+Browse issues labeled [**Open for contributions**](https://github.com/Shelf-nu/shelf.nu/labels/Open%20for%20contibutions) on GitHub to find tasks that the team has scoped and approved for community work. These issues include enough context to get started without needing to ask for clarification first.
+
+If you want to work on something not listed, open an issue first to discuss the idea before investing time in implementation.
+
+## Setting up locally
+
+<Steps>
+  <Step title="Fork and clone">
+    Fork [Shelf-nu/shelf.nu](https://github.com/Shelf-nu/shelf.nu) on GitHub, then clone your fork:
+
+    ```bash
+    git clone https://github.com/<your-username>/shelf.nu.git
+    cd shelf.nu
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```bash
+    pnpm install
+    ```
+  </Step>
+  <Step title="Configure environment">
+    Copy the environment template and fill in your credentials:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    The `.env` file lives at the **monorepo root**, not inside `apps/webapp/`. Required variables include `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_ANON_PUBLIC`, and `SESSION_SECRET`. See the [local development guide](https://docs.shelf.nu/local-development) for full instructions including Supabase project setup and SSL certificates.
+  </Step>
+  <Step title="Set up the database">
+    Generate the Prisma client and run migrations:
+
+    ```bash
+    pnpm webapp:setup
+    ```
+  </Step>
+  <Step title="Start the development server">
+    ```bash
+    pnpm webapp:dev
+    ```
+
+    The app runs at `https://localhost:3000`. The dev server uses HTTPS with local certificates by default.
+  </Step>
+</Steps>
+
+## Making changes
+
+Work on a dedicated branch. Keep your branch focused on a single concern — separate bug fixes from features, and separate refactors from behavior changes.
+
+```bash
+git checkout -b feat/my-feature
+# or
+git checkout -b fix/the-bug
+```
+
+Refer to the [architecture guide](/developer/architecture) before starting significant feature work. The `apps/docs/` directory in the repository also contains up-to-date development practices and deep-dives that should inform your implementation plan.
+
+## Validating before you commit
+
+Before pushing or opening a pull request, run the full validation pipeline:
+
+```bash
+pnpm --filter @shelf/webapp validate
+```
+
+This single command runs:
+
+1. Prisma client type generation
+2. ESLint with auto-fix
+3. Prettier formatting
+4. TypeScript type checking
+5. The full Vitest unit test suite
+
+<Warning>
+  Do not open a pull request if `pnpm --filter @shelf/webapp validate` fails. The CI pipeline runs the same checks and will block your PR until they pass.
+</Warning>
+
+You can also run individual checks in isolation:
+
+| Command | What it runs |
+| --- | --- |
+| `pnpm turbo lint` | ESLint across all packages |
+| `pnpm turbo typecheck` | TypeScript checking across all packages |
+| `pnpm webapp:test -- --run` | Vitest unit tests (always use `--run` to avoid watch mode) |
+
+## Writing commit messages
+
+Shelf.nu uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). The `commit-msg` Git hook runs `commitlint` automatically to enforce the format.
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer]
+```
+
+Common types:
+
+| Type | When to use |
+| --- | --- |
+| `feat` | A new feature |
+| `fix` | A bug fix |
+| `docs` | Documentation changes only |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+| `test` | Adding or updating tests |
+| `chore` | Build process, dependency updates, tooling |
+
+```bash
+# Good examples
+git commit -m "feat(booking): add bulk-cancel action to booking resource route"
+git commit -m "fix(asset): correct status filter query in getAssetsWhereInput"
+git commit -m "docs(contributing): update local setup prerequisites"
+```
+
+<Note>
+  Do not add "Generated with Claude Code" or similar AI-authorship trailers to commits. Keep commit messages focused on the change and its purpose.
+</Note>
+
+## Opening a pull request
+
+<Steps>
+  <Step title="Push your branch">
+    ```bash
+    git push origin feat/my-feature
+    ```
+  </Step>
+  <Step title="Open the PR on GitHub">
+    Go to [github.com/Shelf-nu/shelf.nu](https://github.com/Shelf-nu/shelf.nu) and open a pull request from your fork's branch to `main` (or `dev` for staging deploys).
+  </Step>
+  <Step title="Fill in the PR description">
+    Describe what the PR does, why the change is needed, and any testing notes. Link to the related issue if one exists (e.g., `Closes #123`).
+  </Step>
+  <Step title="Request a review">
+    Request a review from a member of the Shelf team. The team typically responds within a few business days.
+  </Step>
+</Steps>
+
+## Getting help
+
+If you get stuck at any step, you have two good options:
+
+- **Open a GitHub issue** on [Shelf-nu/shelf.nu](https://github.com/Shelf-nu/shelf.nu) describing where you are and what you need.
+- **Join the Discord community** at [discord.gg/8he9W7aTJu](https://discord.gg/8he9W7aTJu) for real-time help from maintainers and contributors.
+
+<Tip>
+  The Discord `#contributors` channel is the fastest way to get feedback on an approach before investing time writing code.
+</Tip>

@@ -1,0 +1,130 @@
+---
+title: "Shelf.nu API Overview — Endpoints and Response Format"
+description: "Shelf.nu's REST API: base URL patterns, the payload() response envelope, JSON error format, session authentication, and available resource groups."
+---
+
+Shelf.nu exposes an internal REST API through React Router resource routes located under `apps/webapp/app/routes/api+/`. These routes handle JSON requests from the web application itself — bulk operations, popover data fetching, PDF generation, and other actions that do not involve rendering a full page view.
+
+<Note>
+  This is an **internal API** used by the Shelf.nu web application, not a public REST API with versioning guarantees. Endpoints may change between releases.
+</Note>
+
+## Base URL
+
+All resource routes share the prefix `/api/`. The full path maps directly to the route filename:
+
+| Route file | URL |
+| --- | --- |
+| `api+/assets.tsx` | `/api/assets` |
+| `api+/assets.bulk-update-location.ts` | `/api/assets.bulk-update-location` |
+| `api+/bookings.get-all.ts` | `/api/bookings.get-all` |
+| `api+/locations.$locationId.tree.tsx` | `/api/locations/:locationId/tree` |
+
+## Authentication
+
+All API endpoints require an authenticated session. The application uses **Supabase Auth** with session cookies set at login. Browser clients automatically send the session cookie with every request.
+
+Requests without a valid session are redirected to the login page (for browser clients) or return a `401 Unauthorized` JSON response. See the [authentication guide](/api/authentication) for details on the login flow.
+
+## Request format
+
+Most mutation endpoints (POST) accept `multipart/form-data` submitted through React Router fetchers or forms. A few endpoints accept query-string parameters for GET requests.
+
+All POST endpoints assert the HTTP method internally and return a `400 Bad Request` if the method is wrong.
+
+## Response format
+
+Every successful response is wrapped in the `payload()` envelope:
+
+```json
+{
+  "data": {
+    "assets": [
+      { "id": "clfabc123", "title": "MacBook Pro 14\"" }
+    ]
+  },
+  "error": null
+}
+```
+
+The `data` field contains the route-specific payload. The `error` field is always `null` on success.
+
+<ResponseField name="data" type="object | null">
+  The response payload. Shape varies per endpoint. `null` on error.
+</ResponseField>
+
+<ResponseField name="error" type="object | null">
+  `null` on success. Set to an error object on failure.
+
+  <Expandable title="error properties">
+    <ResponseField name="error.message" type="string">
+      Human-readable description of the error.
+    </ResponseField>
+    <ResponseField name="error.status" type="number">
+      HTTP status code (400, 401, 403, 404, 500, 503, …).
+    </ResponseField>
+    <ResponseField name="error.label" type="string">
+      Domain label for the error (e.g., `"Asset"`, `"Booking"`).
+    </ResponseField>
+    <ResponseField name="error.title" type="string">
+      Optional short title for UI display.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error format
+
+On failure, the HTTP status code matches `error.status` and the body looks like:
+
+```json
+{
+  "data": null,
+  "error": {
+    "message": "You do not have permission to perform this action.",
+    "status": 403,
+    "label": "Asset",
+    "title": "Unauthorized"
+  }
+}
+```
+
+Common status codes:
+
+| Code | Meaning |
+| --- | --- |
+| `400` | Invalid or missing request parameters |
+| `401` | Not authenticated — session missing or expired |
+| `403` | Authenticated but not authorized (wrong role) |
+| `404` | Resource not found |
+| `500` | Unexpected server error |
+| `503` | Database connectivity issue (transient, may succeed on retry) |
+
+## Available resource groups
+
+<Columns cols={2}>
+  <Card title="Assets" icon="box" href="/api/assets">
+    List assets, bulk assign custody, update location, manage tags and categories.
+  </Card>
+  <Card title="Bookings" icon="calendar" href="/api/bookings">
+    List bookings, bulk archive/cancel/delete, and generate booking PDFs.
+  </Card>
+  <Card title="Locations" icon="map-pin" href="/api/locations">
+    Fetch the location hierarchy tree and bulk-delete locations.
+  </Card>
+  <Card title="Kits" icon="package" href="/api/kits">
+    List kits, manage kit custody, bulk-add/remove assets from kits.
+  </Card>
+</Columns>
+
+## Permissions
+
+Every endpoint checks the caller's organization role before proceeding. The four roles are:
+
+| Role | Description |
+| --- | --- |
+| `OWNER` | Full access to all resources and settings |
+| `ADMIN` | Full access to resources; cannot change workspace billing |
+| `BASE` | Read access plus limited mutations on own assets |
+| `SELF_SERVICE` | Can only manage assets and bookings assigned to themselves |
+
+Role enforcement is handled by `requirePermission()` at the top of each route handler. If the caller's role does not have the required `PermissionAction` for the given `PermissionEntity`, a `403` is returned.
